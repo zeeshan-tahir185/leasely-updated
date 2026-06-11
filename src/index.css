@@ -1,0 +1,498 @@
+@import "@fontsource-variable/inter";
+
+/* ============================================================
+   Hearth — design tokens
+   Warm terracotta brand on a clean white product surface.
+   ============================================================ */
+:root {
+  /* neutrals — faint warm tint (hue ~70), very low chroma */
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.987 0.003 70);
+  --surface-2: oklch(0.975 0.005 70);
+  --border: oklch(0.922 0.004 70);
+  --border-strong: oklch(0.862 0.006 70);
+  --ink: oklch(0.26 0.012 60);
+  --ink-2: oklch(0.4 0.012 60);
+  --muted: oklch(0.505 0.012 65);
+  --faint: oklch(0.66 0.01 70);
+
+  /* brand — terracotta / clay */
+  --primary: oklch(0.55 0.143 45);
+  --primary-strong: oklch(0.49 0.145 44);
+  --primary-press: oklch(0.44 0.14 43);
+  --primary-ink: oklch(0.99 0.008 60);
+  --primary-soft: oklch(0.957 0.026 55);
+  --primary-soft-ink: oklch(0.46 0.13 45);
+
+  /* secondary brand — deep teal-blue */
+  --accent: oklch(0.46 0.095 235);
+  --accent-soft: oklch(0.951 0.022 235);
+
+  /* semantic */
+  --success: oklch(0.57 0.12 150);
+  --success-ink: oklch(0.42 0.11 150);
+  --success-soft: oklch(0.952 0.04 150);
+  --warning: oklch(0.74 0.13 78);
+  --warning-ink: oklch(0.47 0.092 70);
+  --warning-soft: oklch(0.952 0.05 82);
+  --danger: oklch(0.55 0.18 28);
+  --danger-ink: oklch(0.47 0.17 28);
+  --danger-soft: oklch(0.955 0.035 28);
+  --danger-line: oklch(0.86 0.07 28);
+
+  /* radii */
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  /* shadows — soft, warm-neutral */
+  --shadow-sm: 0 1px 2px oklch(0.4 0.03 60 / 0.06);
+  --shadow: 0 1px 2px oklch(0.4 0.03 60 / 0.05), 0 4px 14px oklch(0.4 0.03 60 / 0.07);
+  --shadow-lg: 0 10px 34px oklch(0.4 0.03 60 / 0.13);
+  --shadow-pop: 0 16px 48px oklch(0.3 0.03 60 / 0.2);
+
+  /* z-index scale */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-backdrop: 300;
+  --z-drawer: 310;
+  --z-toast: 400;
+  --z-tooltip: 500;
+
+  /* motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 170ms;
+
+  --sidebar-w: 244px;
+  --topbar-h: 60px;
+
+  font-family: "Inter Variable", system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--ink);
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+button {
+  font-family: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- typography helpers ---------- */
+.t-display {
+  font-size: 1.5rem;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.t-h2 {
+  font-size: 1.125rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+}
+.t-h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.t-label {
+  font-size: 0.75rem;
+  font-weight: 560;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+.t-muted {
+  color: var(--muted);
+}
+.t-faint {
+  color: var(--faint);
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  --_bg: var(--surface);
+  --_fg: var(--ink);
+  --_bd: var(--border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+  font-weight: 560;
+  color: var(--_fg);
+  background: var(--_bg);
+  border: 1px solid var(--_bd);
+  border-radius: var(--r);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    transform 60ms var(--ease), box-shadow var(--dur) var(--ease);
+}
+.btn:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn svg {
+  width: 16px;
+  height: 16px;
+}
+.btn-primary {
+  --_bg: var(--primary);
+  --_fg: var(--primary-ink);
+  --_bd: transparent;
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover {
+  --_bg: var(--primary-strong);
+}
+.btn-primary:active {
+  --_bg: var(--primary-press);
+}
+.btn-ghost {
+  --_bg: transparent;
+  --_bd: transparent;
+  --_fg: var(--ink-2);
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+.btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 0.78125rem;
+  border-radius: var(--r-sm);
+}
+.btn-sm svg {
+  width: 14px;
+  height: 14px;
+}
+.btn-block {
+  width: 100%;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ============================================================
+   Badges / status pills
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  font-size: 0.75rem;
+  font-weight: 560;
+  border-radius: var(--r-full);
+  white-space: nowrap;
+}
+.badge svg {
+  width: 13px;
+  height: 13px;
+}
+.badge-dot::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-neutral {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.badge-paid {
+  background: var(--success-soft);
+  color: var(--success-ink);
+}
+.badge-due {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+.badge-overdue {
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+}
+.badge-accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ============================================================
+   Cards / panels
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-body {
+  padding: 18px;
+}
+
+/* ============================================================
+   Inputs
+   ============================================================ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field > span {
+  font-size: 0.8125rem;
+  font-weight: 540;
+  color: var(--ink-2);
+}
+.input,
+.select {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  width: 100%;
+}
+.input::placeholder {
+  color: var(--faint);
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+textarea.input {
+  height: auto;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+/* segmented control */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.seg button {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 0.8125rem;
+  font-weight: 540;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.seg button:hover {
+  color: var(--ink);
+}
+.seg button[data-active="true"] {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table thead th {
+  text-align: left;
+  padding: 11px 18px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.table tbody td {
+  padding: 13px 18px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.table tbody tr {
+  transition: background var(--dur) var(--ease);
+}
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.row-click {
+  cursor: pointer;
+}
+.row-overdue {
+  background: var(--danger-soft);
+}
+.row-overdue:hover {
+  background: oklch(0.94 0.045 28);
+}
+
+/* ============================================================
+   Avatar
+   ============================================================ */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-soft-ink);
+  background: var(--primary-soft);
+  letter-spacing: 0.01em;
+}
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 0.6875rem;
+}
+
+/* ============================================================
+   Misc primitives
+   ============================================================ */
+.progress {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--primary);
+  transition: width 500ms var(--ease);
+}
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: 0;
+}
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty svg {
+  width: 26px;
+  height: 26px;
+  color: var(--faint);
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
