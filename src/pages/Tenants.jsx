@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
-import { Search, Plus, Check, Mail, Phone } from "lucide-react";
+import { Search, Plus, Check, Mail, Phone, FileText, Trash2 } from "lucide-react";
 import { useData } from "../data/store";
 import { tenantRows, activeLeases, indexes, paymentStatus } from "../lib/domain";
 import { fmtMoney, fmtDateLong, initials, CUR_PERIOD, periodLabelLong } from "../lib/format";
+import { fileToCompressedDataUrl } from "../lib/image";
 import StatusBadge from "../components/StatusBadge";
 import Drawer from "../components/Drawer";
+import Dropzone from "../components/Dropzone";
+import Lightbox from "../components/Lightbox";
 
 const FILTERS = ["all", "paid", "due", "overdue"];
 
@@ -20,9 +23,12 @@ export default function Tenants() {
     if (filter !== "all" && r.status !== filter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
+    const phone = (r.tenant.phone || "").toLowerCase();
     return (
       r.tenant.name.toLowerCase().includes(q) ||
       r.tenant.email.toLowerCase().includes(q) ||
+      phone.includes(q) ||
+      phone.replace(/[\s()-]/g, "").includes(q.replace(/[\s()-]/g, "")) ||
       `${r.property.name} ${r.unit.label}`.toLowerCase().includes(q)
     );
   });
@@ -46,7 +52,7 @@ export default function Tenants() {
           <Search />
           <input
             className="input"
-            placeholder="Search name, email, or unit"
+            placeholder="Search name, email, phone, or unit"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -246,6 +252,8 @@ function TenantDetailDrawer({ leaseId, onClose }) {
         <div className="detail-row"><span className="k">Rent due</span><span className="v">{lease.dueDay}{ordinal(lease.dueDay)} of the month</span></div>
       </div>
 
+      <DocumentsSection leaseId={lease.id} />
+
       <h3 className="t-h3" style={{ marginBottom: 10 }}>Payment history</h3>
       <div className="sched">
         {payments.map((p) => {
@@ -275,6 +283,98 @@ function TenantDetailDrawer({ leaseId, onClose }) {
         })}
       </div>
     </Drawer>
+  );
+}
+
+/* ---------- documents (contract + cheques) ---------- */
+function DocumentsSection({ leaseId }) {
+  const { data, attachDocument, removeDocument } = useData();
+  const docs = (data.documents || {})[leaseId] || { contract: null, cheques: [] };
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  async function add(kind, files) {
+    setBusy(kind);
+    setError("");
+    try {
+      for (const file of files) {
+        const dataUrl = await fileToCompressedDataUrl(file);
+        attachDocument(leaseId, kind, { name: file.name, dataUrl, addedAt: Date.now() });
+      }
+    } catch (e) {
+      setError(e.message || "Could not add that file.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div className="docs">
+      <h3 className="t-h3" style={{ marginBottom: 10 }}>Documents</h3>
+
+      <div className="doc-group">
+        <div className="doc-label"><FileText size={14} /> Tenancy contract</div>
+        {docs.contract ? (
+          <div className="doc-grid">
+            <DocThumb
+              doc={docs.contract}
+              onOpen={() => setPreview(docs.contract)}
+              onRemove={() => removeDocument(leaseId, "contract")}
+            />
+          </div>
+        ) : (
+          <Dropzone
+            onFiles={(files) => add("contract", files)}
+            busy={busy === "contract"}
+            hint="Photo or scan of the signed contract"
+          />
+        )}
+      </div>
+
+      <div className="doc-group">
+        <div className="doc-label"><FileText size={14} /> Cheques {docs.cheques.length > 0 && <span className="t-faint">· {docs.cheques.length}</span>}</div>
+        {docs.cheques.length > 0 && (
+          <div className="doc-grid">
+            {docs.cheques.map((c, i) => (
+              <DocThumb
+                key={i}
+                doc={c}
+                onOpen={() => setPreview(c)}
+                onRemove={() => removeDocument(leaseId, "cheque", i)}
+              />
+            ))}
+          </div>
+        )}
+        <Dropzone
+          onFiles={(files) => add("cheque", files)}
+          multiple
+          busy={busy === "cheque"}
+          hint="Add one or more cheque photos"
+        />
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+      <Lightbox src={preview?.dataUrl} alt={preview?.name} onClose={() => setPreview(null)} />
+    </div>
+  );
+}
+
+function DocThumb({ doc, onOpen, onRemove }) {
+  return (
+    <figure className="doc-thumb">
+      <button type="button" className="doc-thumb-img" onClick={onOpen} aria-label={`Open ${doc.name}`}>
+        <img src={doc.dataUrl} alt={doc.name} />
+      </button>
+      <button
+        type="button"
+        className="doc-remove icon-btn"
+        onClick={onRemove}
+        aria-label={`Remove ${doc.name}`}
+      >
+        <Trash2 />
+      </button>
+    </figure>
   );
 }
 

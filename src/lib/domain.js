@@ -65,11 +65,24 @@ export function summary(data) {
 }
 
 // Expected vs collected for the trailing `n` months (oldest first).
-export function collectionsByMonth(data, n = 6) {
+// Pass a `propertyId` to scope the trend to a single building.
+export function collectionsByMonth(data, n = 6, propertyId = null) {
   const periods = Array.from({ length: n }, (_, i) => addMonthsKey(CUR_PERIOD, -(n - 1 - i)));
   const map = Object.fromEntries(periods.map((p) => [p, { expected: 0, collected: 0 }]));
+
+  let propertyOfLease = null;
+  if (propertyId) {
+    const ix = indexes(data);
+    propertyOfLease = (leaseId) => {
+      const lease = ix.leases[leaseId];
+      const unit = lease && ix.units[lease.unitId];
+      return unit ? unit.propertyId : null;
+    };
+  }
+
   for (const p of data.payments) {
     if (!map[p.period]) continue;
+    if (propertyId && propertyOfLease(p.leaseId) !== propertyId) continue;
     map[p.period].expected += p.amount;
     if (p.paidDate) map[p.period].collected += p.amount;
   }
@@ -134,7 +147,10 @@ export function availablePeriods(data, n = 6) {
 export function propertyRows(data) {
   const ix = indexes(data);
   const active = activeLeases(data);
-  const leaseByUnit = byId(active.map((l) => ({ id: l.unitId, ...l })));
+  // Map unitId -> lease. Built explicitly (not via byId) so the lease keeps its
+  // own id, which the current-month payment lookup below relies on.
+  const leaseByUnit = {};
+  for (const l of active) leaseByUnit[l.unitId] = l;
 
   return data.properties.map((property) => {
     const units = data.units.filter((u) => u.propertyId === property.id);

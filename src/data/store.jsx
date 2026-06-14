@@ -27,8 +27,12 @@ export function DataProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem(KEY, JSON.stringify(data));
-    } catch {
-      /* ignore */
+    } catch (err) {
+      // Most likely the browser storage quota is full (uploaded photos are the
+      // usual cause). Warn once so changes aren't lost silently.
+      if (err && err.name === "QuotaExceededError") {
+        console.warn("Hearth: browser storage is full — recent changes may not be saved.");
+      }
     }
   }, [data]);
 
@@ -43,6 +47,53 @@ export function DataProvider({ children }) {
               : p
           ),
         }));
+      },
+      addProperty({ name, address, city }) {
+        const id = `p-${crypto.randomUUID().slice(0, 8)}`;
+        setData((d) => ({
+          ...d,
+          properties: [...d.properties, { id, name, address, city }],
+        }));
+        return id;
+      },
+      addUnit({ propertyId, label, beds, baths, sqft, marketRent }) {
+        const id = `u-${crypto.randomUUID().slice(0, 8)}`;
+        setData((d) => ({
+          ...d,
+          units: [
+            ...d.units,
+            {
+              id,
+              propertyId,
+              label,
+              beds: Number(beds),
+              baths: Number(baths),
+              sqft: Number(sqft),
+              marketRent: Number(marketRent),
+            },
+          ],
+        }));
+        return id;
+      },
+      attachDocument(leaseId, kind, doc) {
+        setData((d) => {
+          const documents = { ...(d.documents || {}) };
+          const entry = { contract: null, cheques: [], ...(documents[leaseId] || {}) };
+          if (kind === "contract") entry.contract = doc;
+          else entry.cheques = [...entry.cheques, doc];
+          documents[leaseId] = entry;
+          return { ...d, documents };
+        });
+      },
+      removeDocument(leaseId, kind, index) {
+        setData((d) => {
+          const documents = { ...(d.documents || {}) };
+          const entry = { contract: null, cheques: [], ...(documents[leaseId] || {}) };
+          if (kind === "contract") entry.contract = null;
+          else entry.cheques = entry.cheques.filter((_, i) => i !== index);
+          documents[leaseId] = entry;
+          return { ...d, documents };
+        });
       },
       addTenantLease({ name, email, phone, propertyId, unitId, rent, dueDay }) {
         setData((d) => {

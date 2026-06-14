@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Search, Check } from "lucide-react";
+import { Search, Check, Download, Building2 } from "lucide-react";
 import { useData } from "../data/store";
-import { paymentRows, availablePeriods } from "../lib/domain";
+import { paymentRows, availablePeriods, STATUS_LABEL } from "../lib/domain";
 import { fmtMoney, fmtDateLong, periodLabelLong, initials, CUR_PERIOD } from "../lib/format";
+import { downloadCsv } from "../lib/export";
 import StatusBadge from "../components/StatusBadge";
+import MultiSelect from "../components/MultiSelect";
 
 const FILTERS = ["all", "paid", "due", "overdue"];
 
@@ -12,21 +14,50 @@ export default function Payments() {
   const [period, setPeriod] = useState(CUR_PERIOD);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [buildings, setBuildings] = useState([]); // [] = all buildings
 
   const periods = availablePeriods(data, 6);
+  const buildingOptions = data.properties.map((p) => ({ value: p.id, label: p.name }));
   const rows = paymentRows(data, { period });
-  const expected = rows.reduce((s, r) => s + r.amount, 0);
-  const collected = rows.filter((r) => r.status === "paid").reduce((s, r) => s + r.amount, 0);
 
   const filtered = rows.filter((r) => {
     if (filter !== "all" && r.status !== filter) return false;
+    if (buildings.length && !buildings.includes(r.property.id)) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
       r.tenant.name.toLowerCase().includes(q) ||
+      (r.tenant.phone || "").toLowerCase().includes(q) ||
       `${r.property.name} ${r.unit.label}`.toLowerCase().includes(q)
     );
   });
+
+  const expected = filtered.reduce((s, r) => s + r.amount, 0);
+  const collected = filtered.filter((r) => r.status === "paid").reduce((s, r) => s + r.amount, 0);
+
+  function exportSpreadsheet() {
+    const headers = [
+      "Tenant",
+      "Phone",
+      "Email",
+      "Amount due (AED)",
+      "Payment date",
+      "Building",
+      "Unit",
+      "Status",
+    ];
+    const out = filtered.map((r) => [
+      r.tenant.name,
+      r.tenant.phone || "",
+      r.tenant.email || "",
+      r.amount,
+      r.status === "paid" && r.paidDate ? fmtDateLong(r.paidDate) : fmtDateLong(r.dueDate),
+      r.property.name,
+      r.unit.label,
+      STATUS_LABEL[r.status],
+    ]);
+    downloadCsv(`hearth-payments-${period}.csv`, headers, out);
+  }
 
   return (
     <div className="page">
@@ -34,8 +65,19 @@ export default function Payments() {
         <div>
           <h1 className="page-title">Payments</h1>
           <p className="page-sub">
-            {fmtMoney(collected)} of {fmtMoney(expected)} collected in {periodLabelLong(period)}.
+            {fmtMoney(collected)} of {fmtMoney(expected)} collected
+            {buildings.length ? ` across ${buildings.length} building${buildings.length > 1 ? "s" : ""}` : ""} in {periodLabelLong(period)}.
           </p>
+        </div>
+        <div className="page-actions">
+          <button
+            className="btn"
+            onClick={exportSpreadsheet}
+            disabled={filtered.length === 0}
+            title="Download the rows below as a spreadsheet (.csv)"
+          >
+            <Download /> Export to spreadsheet
+          </button>
         </div>
       </div>
 
@@ -44,11 +86,18 @@ export default function Payments() {
           <Search />
           <input
             className="input"
-            placeholder="Search tenant or unit"
+            placeholder="Search name, phone, or unit"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        <MultiSelect
+          label="Buildings"
+          icon={Building2}
+          options={buildingOptions}
+          selected={buildings}
+          onChange={setBuildings}
+        />
         <select className="select" style={{ width: "auto" }} value={period} onChange={(e) => setPeriod(e.target.value)}>
           {periods.map((p) => (
             <option key={p} value={p}>{periodLabelLong(p)}</option>

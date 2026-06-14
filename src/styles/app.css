@@ -911,6 +911,277 @@
 }
 
 /* ============================================================
+   Multi-select filter (buildings)
+   ============================================================ */
+.ms {
+  position: relative;
+}
+.ms-trigger {
+  gap: 7px;
+}
+.ms-trigger[data-active="true"] {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-soft-ink);
+}
+.ms-chev {
+  width: 15px;
+  height: 15px;
+  color: var(--faint);
+  margin-left: 1px;
+}
+.ms-menu {
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 224px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.ms-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  font-weight: 520;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.ms-opt:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.ms-opt.is-on {
+  color: var(--ink);
+  font-weight: 560;
+}
+.ms-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--primary-ink);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+}
+.ms-opt.is-on .ms-check {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.ms-check svg {
+  width: 12px;
+  height: 12px;
+}
+.ms-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}
+
+/* ============================================================
+   Dropzone + documents
+   ============================================================ */
+.dropzone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.dropzone:hover,
+.dropzone.is-over {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.dropzone.is-busy {
+  cursor: progress;
+  opacity: 0.7;
+}
+.dropzone-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.dropzone-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.dropzone-text strong {
+  font-size: 0.8125rem;
+  font-weight: 580;
+  color: var(--ink);
+}
+.dropzone-text span {
+  font-size: 0.75rem;
+}
+
+.docs {
+  margin-bottom: 22px;
+}
+.doc-group {
+  margin-bottom: 16px;
+}
+.doc-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 560;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.doc-label svg {
+  color: var(--muted);
+}
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.doc-thumb {
+  position: relative;
+  margin: 0;
+}
+.doc-thumb-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+  cursor: zoom-in;
+}
+.doc-thumb-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.doc-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: oklch(1 0 0 / 0.9);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.doc-remove svg {
+  width: 13px;
+  height: 13px;
+  color: var(--danger-ink);
+}
+.doc-remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+}
+.doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 0.6875rem;
+  font-weight: 560;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+}
+.doc-chip svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* ============================================================
+   Lightbox (document preview)
+   ============================================================ */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-tooltip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 44px;
+  background: oklch(0.2 0.02 60 / 0.82);
+  backdrop-filter: blur(4px);
+  animation: fade-in 160ms var(--ease);
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  cursor: default;
+}
+.lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: oklch(1 0 0);
+  background: oklch(1 0 0 / 0.14);
+}
+.lightbox-close:hover {
+  color: oklch(1 0 0);
+  background: oklch(1 0 0 / 0.26);
+}
+
+/* ============================================================
+   Analytics — by-building table
+   ============================================================ */
+.prop-icon-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+}
+.prop-icon-sm svg {
+  width: 17px;
+  height: 17px;
+}
+.bld-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: inherit;
+}
+.bld-link:hover .tn-name {
+  color: var(--primary);
+}
+.bld-collect {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 170px;
+}
+.bld-pct {
+  width: 38px;
+  text-align: right;
+  font-size: 0.8125rem;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+
+/* ============================================================
    Animations
    ============================================================ */
 @keyframes page-in {

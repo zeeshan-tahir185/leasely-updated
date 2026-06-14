@@ -9,6 +9,7 @@ import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
 import Tenants from "./pages/Tenants";
 import Payments from "./pages/Payments";
+import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 
 const AUTH_KEY = "hearth:auth";
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="properties/:id" element={<PropertyDetail />} />
           <Route path="tenants" element={<Tenants />} />
           <Route path="payments" element={<Payments />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

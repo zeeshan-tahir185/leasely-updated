@@ -1,11 +1,14 @@
-import { Link } from "react-router-dom";
-import { Building2 } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Building2, Plus } from "lucide-react";
 import { useData } from "../data/store";
 import { propertyRows } from "../lib/domain";
 import { fmtMoney } from "../lib/format";
+import Drawer from "../components/Drawer";
 
 export default function Properties() {
   const { data } = useData();
+  const [addOpen, setAddOpen] = useState(false);
   const rows = propertyRows(data);
 
   return (
@@ -14,6 +17,11 @@ export default function Properties() {
         <div>
           <h1 className="page-title">Properties</h1>
           <p className="page-sub">{rows.length} buildings across your portfolio.</p>
+        </div>
+        <div className="page-actions">
+          <button className="btn btn-primary" onClick={() => setAddOpen(true)}>
+            <Plus /> Add property
+          </button>
         </div>
       </div>
 
@@ -68,6 +76,63 @@ export default function Properties() {
           </Link>
         ))}
       </div>
+
+      <AddPropertyDrawer open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
+  );
+}
+
+function AddPropertyDrawer({ open, onClose }) {
+  const { addProperty } = useData();
+  const navigate = useNavigate();
+  const blank = { name: "", address: "", city: "" };
+  const [form, setForm] = useState(blank);
+  const [error, setError] = useState("");
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  function submit(e) {
+    e.preventDefault();
+    const name = form.name.trim();
+    if (!name) return setError("Building name is required.");
+    const id = addProperty({ name, address: form.address.trim(), city: form.city.trim() });
+    setForm(blank);
+    setError("");
+    onClose();
+    navigate(`/properties/${id}`);
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="Add a property"
+      subtitle="Create a building, then add its units"
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onClose} type="button">Cancel</button>
+          <button className="btn btn-primary" form="add-property" type="submit">Create property</button>
+        </>
+      }
+    >
+      <form id="add-property" onSubmit={submit} className="form-grid">
+        <label className="field full">
+          <span>Building name</span>
+          <input className="input" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Marina Heights" autoFocus />
+        </label>
+        <label className="field full">
+          <span>Address</span>
+          <input className="input" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Street, tower, or plot" />
+        </label>
+        <label className="field full">
+          <span>City / area</span>
+          <input className="input" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="e.g. Dubai Marina" />
+        </label>
+        {error && <p className="form-error full">{error}</p>}
+        <p className="t-faint full" style={{ fontSize: 12, margin: 0 }}>
+          You'll add units to this building on its page next.
+        </p>
+      </form>
+    </Drawer>
   );
 }

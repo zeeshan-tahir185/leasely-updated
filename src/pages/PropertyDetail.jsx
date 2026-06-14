@@ -1,13 +1,24 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Building2 } from "lucide-react";
+import { ArrowLeft, Check, Building2, Plus, Paperclip } from "lucide-react";
 import { useData } from "../data/store";
-import { indexes, unitRows, propertyRows } from "../lib/domain";
+import { indexes, unitRows, propertyRows, collectionsByMonth } from "../lib/domain";
 import { fmtMoney, initials } from "../lib/format";
 import StatusBadge from "../components/StatusBadge";
+import Drawer from "../components/Drawer";
+import CollectionsChart from "../components/charts/CollectionsChart";
+
+const AVAIL = [
+  { key: "all", label: "All" },
+  { key: "leased", label: "Leased" },
+  { key: "available", label: "Available" },
+];
 
 export default function PropertyDetail() {
   const { id } = useParams();
   const { data, setPaid } = useData();
+  const [addUnitOpen, setAddUnitOpen] = useState(false);
+  const [avail, setAvail] = useState("all");
   const ix = indexes(data);
   const property = ix.properties[id];
   const rollup = propertyRows(data).find((r) => r.property.id === id);
@@ -21,6 +32,15 @@ export default function PropertyDetail() {
   }
 
   const units = unitRows(data, id);
+  const months = collectionsByMonth(data, 6, id);
+  const hasHistory = months.some((m) => m.expected > 0);
+  const leasedCount = units.filter((u) => !u.vacant).length;
+  const availableCount = units.length - leasedCount;
+  const docs = data.documents || {};
+
+  const shown = units.filter((u) =>
+    avail === "all" ? true : avail === "available" ? u.vacant : !u.vacant
+  );
 
   return (
     <div className="page">
@@ -32,6 +52,11 @@ export default function PropertyDetail() {
         <div>
           <h1 className="page-title">{property.name}</h1>
           <p className="page-sub">{property.address} · {property.city}</p>
+        </div>
+        <div className="page-actions">
+          <button className="btn btn-primary" onClick={() => setAddUnitOpen(true)}>
+            <Plus /> Add unit
+          </button>
         </div>
       </div>
 
@@ -58,10 +83,37 @@ export default function PropertyDetail() {
         </div>
       </div>
 
+      <section className="card" style={{ marginBottom: 18 }}>
+        <div className="panel-head">
+          <div>
+            <h3 className="t-h3">Collections</h3>
+            <p className="t-muted">Expected vs collected, last 6 months</p>
+          </div>
+        </div>
+        <div className="panel-body">
+          {hasHistory ? (
+            <CollectionsChart data={months} />
+          ) : (
+            <div className="empty">
+              <Building2 />
+              <p>No payment history yet. Add units and tenants to start tracking rent.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="card">
         <div className="panel-head">
           <h3 className="t-h3">Units</h3>
-          <span className="t-muted">{units.length} total</span>
+          <div className="seg">
+            {AVAIL.map((a) => (
+              <button key={a.key} data-active={avail === a.key} onClick={() => setAvail(a.key)}>
+                {a.label}
+                {a.key === "leased" && ` (${leasedCount})`}
+                {a.key === "available" && ` (${availableCount})`}
+              </button>
+            ))}
+          </div>
         </div>
         <table className="table">
           <thead>
@@ -75,44 +127,133 @@ export default function PropertyDetail() {
             </tr>
           </thead>
           <tbody>
-            {units.map((u) => (
-              <tr key={u.unit.id} className={u.status === "overdue" ? "row-overdue" : ""}>
-                <td style={{ fontWeight: 600 }}>{u.unit.label}</td>
-                <td className="t-muted">
-                  {u.unit.beds === 0 ? "Studio" : `${u.unit.beds} bed`} · {u.unit.sqft} sqft
-                </td>
-                <td>
-                  {u.vacant ? (
-                    <span className="t-faint">—</span>
-                  ) : (
-                    <div className="cell-tenant">
-                      <span className="avatar avatar-sm">{initials(u.tenant.name)}</span>
-                      <span className="tn-name">{u.tenant.name}</span>
-                    </div>
-                  )}
-                </td>
-                <td className="num">{u.vacant ? <span className="t-faint">{fmtMoney(u.unit.marketRent)}</span> : fmtMoney(u.lease.rent)}</td>
-                <td><StatusBadge status={u.status} /></td>
-                <td className="num">
-                  {!u.vacant && u.status !== "paid" && (
-                    <button className="btn btn-sm" onClick={() => setPaid(u.currentPaymentId, true)}>
-                      <Check /> Mark paid
-                    </button>
-                  )}
-                  {!u.vacant && u.status === "paid" && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => setPaid(u.currentPaymentId, false)}>
-                      Undo
-                    </button>
-                  )}
-                  {u.vacant && (
-                    <span className="badge badge-neutral"><Building2 strokeWidth={2.5} /> Available</span>
-                  )}
+            {shown.map((u) => {
+              const docCount = u.vacant
+                ? 0
+                : ((docs[u.lease.id]?.contract ? 1 : 0) + (docs[u.lease.id]?.cheques?.length || 0));
+              return (
+                <tr key={u.unit.id} className={u.status === "overdue" ? "row-overdue" : ""}>
+                  <td style={{ fontWeight: 600 }}>{u.unit.label}</td>
+                  <td className="t-muted">
+                    {u.unit.beds === 0 ? "Studio" : `${u.unit.beds} bed`} · {u.unit.sqft} sqft
+                  </td>
+                  <td>
+                    {u.vacant ? (
+                      <span className="t-faint">—</span>
+                    ) : (
+                      <div className="cell-tenant">
+                        <span className="avatar avatar-sm">{initials(u.tenant.name)}</span>
+                        <span className="tn-name">{u.tenant.name}</span>
+                        {docCount > 0 && (
+                          <span className="doc-chip" title={`${docCount} document${docCount > 1 ? "s" : ""} on file`}>
+                            <Paperclip /> {docCount}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  <td className="num">{u.vacant ? <span className="t-faint">{fmtMoney(u.unit.marketRent)}</span> : fmtMoney(u.lease.rent)}</td>
+                  <td><StatusBadge status={u.status} /></td>
+                  <td className="num">
+                    {!u.vacant && u.status !== "paid" && (
+                      <button className="btn btn-sm" onClick={() => setPaid(u.currentPaymentId, true)}>
+                        <Check /> Mark paid
+                      </button>
+                    )}
+                    {!u.vacant && u.status === "paid" && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => setPaid(u.currentPaymentId, false)}>
+                        Undo
+                      </button>
+                    )}
+                    {u.vacant && (
+                      <span className="badge badge-neutral"><Building2 strokeWidth={2.5} /> Available</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={6}>
+                  <div className="empty">
+                    <Building2 />
+                    <p>{avail === "available" ? "No available units — everything is leased." : avail === "leased" ? "No leased units yet." : "No units yet. Add the first one."}</p>
+                  </div>
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </section>
+
+      <AddUnitDrawer open={addUnitOpen} onClose={() => setAddUnitOpen(false)} propertyId={id} />
     </div>
+  );
+}
+
+function AddUnitDrawer({ open, onClose, propertyId }) {
+  const { addUnit } = useData();
+  const blank = { label: "", beds: "1", baths: "1", sqft: "", marketRent: "" };
+  const [form, setForm] = useState(blank);
+  const [error, setError] = useState("");
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  function submit(e) {
+    e.preventDefault();
+    const label = form.label.trim();
+    if (!label) return setError("Unit label is required (e.g. 1A, 203).");
+    const rent = Number(form.marketRent);
+    if (!Number.isFinite(rent) || rent <= 0) return setError("Enter a market rent.");
+    addUnit({
+      propertyId,
+      label,
+      beds: form.beds || 0,
+      baths: form.baths || 1,
+      sqft: form.sqft || 0,
+      marketRent: rent,
+    });
+    setForm(blank);
+    setError("");
+    onClose();
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="Add a unit"
+      subtitle="A rentable unit in this building"
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onClose} type="button">Cancel</button>
+          <button className="btn btn-primary" form="add-unit" type="submit">Add unit</button>
+        </>
+      }
+    >
+      <form id="add-unit" onSubmit={submit} className="form-grid">
+        <label className="field full">
+          <span>Unit label</span>
+          <input className="input" value={form.label} onChange={(e) => set("label", e.target.value)} placeholder="e.g. 1A, 203, TH-4" autoFocus />
+        </label>
+        <label className="field">
+          <span>Bedrooms</span>
+          <input className="input" type="number" min="0" value={form.beds} onChange={(e) => set("beds", e.target.value)} placeholder="0 = studio" />
+        </label>
+        <label className="field">
+          <span>Bathrooms</span>
+          <input className="input" type="number" min="0" step="0.5" value={form.baths} onChange={(e) => set("baths", e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Size (sqft)</span>
+          <input className="input" type="number" min="0" value={form.sqft} onChange={(e) => set("sqft", e.target.value)} placeholder="e.g. 850" />
+        </label>
+        <label className="field">
+          <span>Market rent (AED)</span>
+          <input className="input" type="number" min="0" value={form.marketRent} onChange={(e) => set("marketRent", e.target.value)} placeholder="e.g. 12000" />
+        </label>
+        {error && <p className="form-error full">{error}</p>}
+      </form>
+    </Drawer>
   );
 }

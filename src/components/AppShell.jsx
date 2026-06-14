@@ -5,6 +5,7 @@ import {
   Building2,
   Users,
   ReceiptText,
+  BarChart3,
   Settings,
   ChevronsUpDown,
   RotateCcw,
@@ -19,6 +20,7 @@ const NAV = [
   { to: "/properties", label: "Properties", Icon: Building2 },
   { to: "/tenants", label: "Tenants", Icon: Users },
   { to: "/payments", label: "Payments", Icon: ReceiptText },
+  { to: "/analytics", label: "Analytics", Icon: BarChart3 },
   { to: "/settings", label: "Settings", Icon: Settings },
 ];
 
