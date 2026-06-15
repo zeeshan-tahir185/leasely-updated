@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Search, Plus, Check, Mail, Phone, FileText, Trash2 } from "lucide-react";
 import { useData } from "../data/store";
 import { tenantRows, activeLeases, indexes, paymentStatus } from "../lib/domain";
-import { fmtMoney, fmtDateLong, initials, CUR_PERIOD, periodLabelLong } from "../lib/format";
+import { fmtMoney, fmtDateLong, initials, CUR_PERIOD, periodLabelLong, phoneMatch } from "../lib/format";
 import { fileToCompressedDataUrl } from "../lib/image";
 import StatusBadge from "../components/StatusBadge";
 import Drawer from "../components/Drawer";
@@ -10,6 +10,15 @@ import Dropzone from "../components/Dropzone";
 import Lightbox from "../components/Lightbox";
 
 const FILTERS = ["all", "paid", "due", "overdue"];
+
+const INSTALLMENT_OPTIONS = [
+  { n: 1, label: "1 cheque · annual" },
+  { n: 2, label: "2 cheques · every 6 months" },
+  { n: 3, label: "3 cheques · every 4 months" },
+  { n: 4, label: "4 cheques · quarterly" },
+  { n: 6, label: "6 cheques · every 2 months" },
+  { n: 12, label: "12 cheques · monthly" },
+];
 
 export default function Tenants() {
   const { data } = useData();
@@ -23,12 +32,10 @@ export default function Tenants() {
     if (filter !== "all" && r.status !== filter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    const phone = (r.tenant.phone || "").toLowerCase();
     return (
       r.tenant.name.toLowerCase().includes(q) ||
       r.tenant.email.toLowerCase().includes(q) ||
-      phone.includes(q) ||
-      phone.replace(/[\s()-]/g, "").includes(q.replace(/[\s()-]/g, "")) ||
+      phoneMatch(r.tenant.phone, q) ||
       `${r.property.name} ${r.unit.label}`.toLowerCase().includes(q)
     );
   });
@@ -131,35 +138,36 @@ function AddTenantDrawer({ open, onClose }) {
   const occupied = new Set(activeLeases(data).map((l) => l.unitId));
   const vacant = data.units.filter((u) => !occupied.has(u.id));
 
-  const blank = { name: "", email: "", phone: "", unitId: "", rent: "", dueDay: "1" };
+  const blank = { name: "", email: "", phone: "", propertyId: "", unitId: "", rent: "", dueDay: "1", installments: "1" };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const onPickProperty = (propertyId) => setForm((f) => ({ ...f, propertyId, unitId: "", rent: "" }));
   const onPickUnit = (unitId) => {
     const u = data.units.find((x) => x.id === unitId);
-    setForm((f) => ({ ...f, unitId, rent: u ? String(u.marketRent) : f.rent }));
+    // marketRent is monthly; prefill the yearly rent field.
+    setForm((f) => ({ ...f, unitId, rent: u ? String(u.marketRent * 12) : f.rent }));
   };
+  const vacantInProperty = form.propertyId ? vacant.filter((u) => u.propertyId === form.propertyId) : [];
 
   function submit(e) {
     e.preventDefault();
     const name = form.name.trim();
     if (!name) return setError("Tenant name is required.");
+    if (!form.propertyId) return setError("Choose a property.");
     if (!form.unitId) return setError("Choose a unit to lease.");
-    const rent = Number(form.rent);
-    if (!Number.isFinite(rent) || rent <= 0) return setError("Enter a monthly rent.");
+    const annualRent = Number(form.rent);
+    if (!Number.isFinite(annualRent) || annualRent <= 0) return setError("Enter the yearly rent.");
     const dueDay = Number(form.dueDay);
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)
       return setError("Due day must be between 1 and 31.");
 
-    const unit = data.units.find((u) => u.id === form.unitId);
-    addTenantLease({ ...form, name, rent, dueDay, propertyId: unit.propertyId });
+    addTenantLease({ ...form, name, annualRent, dueDay, installments: Number(form.installments) });
     setForm(blank);
     setError("");
     onClose();
   }
-
-  const propsById = indexes(data).properties;
 
   return (
     <Drawer
@@ -188,24 +196,55 @@ function AddTenantDrawer({ open, onClose }) {
           <input className="input" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+971 50 000 0000" />
         </label>
         <label className="field full">
+          <span>Property</span>
+          <select className="select" value={form.propertyId} onChange={(e) => onPickProperty(e.target.value)}>
+            <option value="">Select a property…</option>
+            {data.properties.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field full">
           <span>Unit</span>
-          <select className="select" value={form.unitId} onChange={(e) => onPickUnit(e.target.value)}>
-            <option value="">Select a vacant unit…</option>
-            {vacant.map((u) => (
+          <select
+            className="select"
+            value={form.unitId}
+            onChange={(e) => onPickUnit(e.target.value)}
+            disabled={!form.propertyId}
+          >
+            <option value="">{form.propertyId ? "Select a vacant unit…" : "Choose a property first"}</option>
+            {vacantInProperty.map((u) => (
               <option key={u.id} value={u.id}>
-                {propsById[u.propertyId].name} · {u.label} ({fmtMoney(u.marketRent)})
+                {u.label}{u.unitType ? ` · ${u.unitType}` : ""} — {fmtMoney(u.marketRent)}/mo
               </option>
             ))}
           </select>
-          {vacant.length === 0 && <span className="t-faint" style={{ fontSize: 12 }}>All units are currently leased.</span>}
+          {form.propertyId && vacantInProperty.length === 0 && (
+            <span className="t-faint" style={{ fontSize: 12 }}>No vacant units in this property.</span>
+          )}
         </label>
         <label className="field">
-          <span>Monthly rent (AED)</span>
-          <input className="input" type="number" value={form.rent} onChange={(e) => set("rent", e.target.value)} placeholder="10000" />
+          <span>Yearly rent (AED)</span>
+          <input className="input" type="number" value={form.rent} onChange={(e) => set("rent", e.target.value)} placeholder="120000" />
         </label>
         <label className="field">
           <span>Rent due day</span>
           <input className="input" type="number" min="1" max="31" value={form.dueDay} onChange={(e) => set("dueDay", e.target.value)} />
+        </label>
+        <label className="field full">
+          <span>Payment plan (cheques per year)</span>
+          <select className="select" value={form.installments} onChange={(e) => set("installments", e.target.value)}>
+            {INSTALLMENT_OPTIONS.map((o) => (
+              <option key={o.n} value={o.n}>{o.label}</option>
+            ))}
+          </select>
+          {Number(form.rent) > 0 && (
+            <span className="t-faint" style={{ fontSize: 12 }}>
+              {form.installments} payment{Number(form.installments) > 1 ? "s" : ""} of{" "}
+              {fmtMoney(Math.round(Number(form.rent) / Number(form.installments)))} · about{" "}
+              {fmtMoney(Math.round(Number(form.rent) / 12))}/month.
+            </span>
+          )}
         </label>
         {error && <p className="form-error full">{error}</p>}
       </form>
@@ -246,15 +285,17 @@ function TenantDetailDrawer({ leaseId, onClose }) {
       <div className="detail-list" style={{ marginBottom: 22 }}>
         <div className="detail-row"><span className="k"><Mail size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Email</span><span className="v">{tenant.email || "—"}</span></div>
         <div className="detail-row"><span className="k"><Phone size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Phone</span><span className="v">{tenant.phone || "—"}</span></div>
+        <div className="detail-row"><span className="k">Yearly rent</span><span className="v">{fmtMoney(lease.rent * 12)}</span></div>
         <div className="detail-row"><span className="k">Monthly rent</span><span className="v">{fmtMoney(lease.rent)}</span></div>
         <div className="detail-row"><span className="k">Security deposit</span><span className="v">{fmtMoney(lease.deposit)}</span></div>
         <div className="detail-row"><span className="k">Lease started</span><span className="v">{fmtDateLong(lease.startDate)}</span></div>
         <div className="detail-row"><span className="k">Rent due</span><span className="v">{lease.dueDay}{ordinal(lease.dueDay)} of the month</span></div>
+        <div className="detail-row"><span className="k">Payment plan</span><span className="v">{lease.installments ? (lease.installments === 1 ? "1 cheque · annual" : `${lease.installments} cheques / year`) : "Monthly"}</span></div>
       </div>
 
       <DocumentsSection leaseId={lease.id} />
 
-      <h3 className="t-h3" style={{ marginBottom: 10 }}>Payment history</h3>
+      <h3 className="t-h3" style={{ marginBottom: 10 }}>Payment schedule</h3>
       <div className="sched">
         {payments.map((p) => {
           const st = paymentStatus(p);

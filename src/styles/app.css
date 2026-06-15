@@ -1182,6 +1182,142 @@
 }
 
 /* ============================================================
+   Chips + project/unit type controls
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  font-size: 0.6875rem;
+  font-weight: 580;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  white-space: nowrap;
+}
+.prop-head-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip-toggle {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 0.8125rem;
+  font-weight: 540;
+  color: var(--ink-2);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.chip-toggle:hover {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+.chip-toggle.is-on {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-soft-ink);
+  font-weight: 580;
+}
+.unit-count-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
+}
+.ucount {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ucount > span {
+  font-size: 0.75rem;
+  font-weight: 540;
+  color: var(--muted);
+  text-align: center;
+}
+.ucount .input {
+  text-align: center;
+  padding: 0 6px;
+}
+
+/* ============================================================
+   Import drawer
+   ============================================================ */
+.import-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.import-steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 38px;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.import-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 620;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 50%;
+}
+.import-steps strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.import-preview {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+.import-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 6px;
+}
+.import-ok {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 5px;
+  color: var(--success-ink);
+  background: var(--success-soft);
+  border-radius: 50%;
+}
+
+/* ============================================================
    Animations
    ============================================================ */
 @keyframes page-in {

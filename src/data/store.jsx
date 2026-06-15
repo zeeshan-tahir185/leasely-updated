@@ -48,13 +48,95 @@ export function DataProvider({ children }) {
           ),
         }));
       },
-      addProperty({ name, address, city }) {
+      addProperty(fields, units = []) {
         const id = `p-${crypto.randomUUID().slice(0, 8)}`;
+        const newUnits = units.map((u) => ({
+          id: `u-${crypto.randomUUID().slice(0, 8)}`,
+          propertyId: id,
+          label: u.label,
+          unitType: u.unitType || undefined,
+          beds: Number(u.beds) || 0,
+          baths: Number(u.baths) || 1,
+          sqft: Number(u.sqft) || 0,
+          marketRent: Number(u.marketRent) || 0,
+        }));
         setData((d) => ({
           ...d,
-          properties: [...d.properties, { id, name, address, city }],
+          properties: [...d.properties, { id, ...fields }],
+          units: [...d.units, ...newUnits],
         }));
         return id;
+      },
+      importBuildings(buildings) {
+        setData((d) => {
+          const properties = [...d.properties];
+          const units = [...d.units];
+          const tenants = [...d.tenants];
+          const leases = [...d.leases];
+          const payments = [...d.payments];
+          const now = new Date();
+          const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+          const uid = (p) => `${p}-${crypto.randomUUID().slice(0, 8)}`;
+
+          for (const b of buildings) {
+            const pid = uid("p");
+            properties.push({
+              id: pid,
+              name: b.name,
+              address: b.address || "",
+              city: b.city || "",
+              type: b.type || undefined,
+              plotNumber: b.plotNumber || undefined,
+              landlord: b.landlord || undefined,
+              floors: b.floors || undefined,
+            });
+            for (const u of b.units) {
+              const unitId = uid("u");
+              units.push({
+                id: unitId,
+                propertyId: pid,
+                label: u.label,
+                unitType: u.unitType || undefined,
+                beds: Number(u.beds) || 0,
+                baths: Number(u.baths) || 1,
+                sqft: Number(u.sqft) || 0,
+                marketRent: Number(u.marketRent) || 0,
+              });
+              if (u.tenant && u.tenant.name) {
+                const tid = uid("t");
+                const lid = uid("l");
+                const rent = Number(u.tenant.rent) || Number(u.marketRent) || 0;
+                const dueDay = Number(u.tenant.dueDay) || 1;
+                tenants.push({ id: tid, name: u.tenant.name, email: u.tenant.email || "", phone: u.tenant.phone || "" });
+                leases.push({
+                  id: lid,
+                  unitId,
+                  tenantId: tid,
+                  rent,
+                  dueDay,
+                  deposit: rent,
+                  startDate: isoOf(now),
+                  status: "active",
+                });
+                payments.push({
+                  id: `pay-${lid}-${period}`,
+                  leaseId: lid,
+                  period,
+                  dueDate: `${period}-${String(dueDay).padStart(2, "0")}`,
+                  amount: rent,
+                  paidDate: null,
+                });
+              }
+            }
+          }
+          return { ...d, properties, units, tenants, leases, payments };
+        });
+      },
+      updateUnit(unitId, fields) {
+        setData((d) => ({
+          ...d,
+          units: d.units.map((u) => (u.id === unitId ? { ...u, ...fields } : u)),
+        }));
       },
       addUnit({ propertyId, label, beds, baths, sqft, marketRent }) {
         const id = `u-${crypto.randomUUID().slice(0, 8)}`;
@@ -95,13 +177,33 @@ export function DataProvider({ children }) {
           return { ...d, documents };
         });
       },
-      addTenantLease({ name, email, phone, propertyId, unitId, rent, dueDay }) {
+      addTenantLease({ name, email, phone, unitId, annualRent, dueDay, installments = 1 }) {
         setData((d) => {
           const tid = `t-${crypto.randomUUID().slice(0, 8)}`;
           const lid = `l-${crypto.randomUUID().slice(0, 8)}`;
           const now = new Date();
-          const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-          const due = `${period}-${String(dueDay).padStart(2, "0")}`;
+          const pad = (n) => String(n).padStart(2, "0");
+          // Rent is entered yearly; store a monthly figure for the rest of the app.
+          const yearly = Number(annualRent);
+          const monthlyRent = Math.round(yearly / 12);
+          const dd = Number(dueDay);
+          // Split the year's rent into N cheques, due every (12/N) months.
+          const n = Math.max(1, Number(installments) || 1);
+          const monthsPer = Math.max(1, Math.round(12 / n));
+          const chequeAmount = Math.round(yearly / n);
+          const payments = [];
+          for (let i = 0; i < n; i++) {
+            const dt = new Date(now.getFullYear(), now.getMonth() + i * monthsPer, 1);
+            const period = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}`;
+            payments.push({
+              id: `pay-${lid}-${period}`,
+              leaseId: lid,
+              period,
+              dueDate: `${period}-${pad(dd)}`,
+              amount: chequeAmount,
+              paidDate: null,
+            });
+          }
           return {
             ...d,
             tenants: [...d.tenants, { id: tid, name, email, phone }],
@@ -111,17 +213,15 @@ export function DataProvider({ children }) {
                 id: lid,
                 unitId,
                 tenantId: tid,
-                rent: Number(rent),
-                dueDay: Number(dueDay),
-                deposit: Number(rent),
+                rent: monthlyRent,
+                dueDay: dd,
+                deposit: monthlyRent,
                 startDate: isoOf(now),
                 status: "active",
+                installments: n,
               },
             ],
-            payments: [
-              ...d.payments,
-              { id: `pay-${lid}-${period}`, leaseId: lid, period, dueDate: due, amount: Number(rent), paidDate: null },
-            ],
+            payments: [...d.payments, ...payments],
           };
         });
       },

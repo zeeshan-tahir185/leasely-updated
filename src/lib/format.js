@@ -63,6 +63,28 @@ export function fmtDateLong(iso) {
     year: "numeric",
   });
 }
+// Reduce a phone number to its national significant digits so that the same
+// UAE number written as 050…, 0097150…, +97150…, or 50… all compare equal.
+export function normalizePhone(s) {
+  let d = (s || "").replace(/\D/g, ""); // digits only
+  if (d.startsWith("00")) d = d.slice(2); // 00971… → 971…
+  if (d.startsWith("971")) d = d.slice(3); // strip UAE country code
+  else if (d.startsWith("0")) d = d.replace(/^0+/, ""); // strip trunk 0 (05x → 5x)
+  return d;
+}
+
+// True if `query` looks like part of `stored` phone. Matches on raw digit
+// substrings (so typing just the last few digits works) and on the national
+// form (so 05x / 00971 / +971 all match the same number).
+export function phoneMatch(stored, query) {
+  const qd = (query || "").replace(/\D/g, "");
+  if (qd.length < 3) return false;
+  const sd = (stored || "").replace(/\D/g, "");
+  const sn = normalizePhone(stored);
+  const qn = normalizePhone(query);
+  return sd.includes(qd) || sn.includes(qd) || (qn.length >= 3 && sn.includes(qn));
+}
+
 export function initials(name) {
   return name
     .split(" ")

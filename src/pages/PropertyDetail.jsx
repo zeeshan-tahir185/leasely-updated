@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Check, Building2, Plus, Paperclip } from "lucide-react";
 import { useData } from "../data/store";
-import { indexes, unitRows, propertyRows, collectionsByMonth } from "../lib/domain";
-import { fmtMoney, initials } from "../lib/format";
+import { indexes, unitRows, propertyRows, collectionsByMonth, activeLeases, paymentStatus } from "../lib/domain";
+import { fmtMoney, initials, CUR_PERIOD } from "../lib/format";
+import { UNIT_TYPES } from "../lib/constants";
 import StatusBadge from "../components/StatusBadge";
 import Drawer from "../components/Drawer";
 import CollectionsChart from "../components/charts/CollectionsChart";
@@ -18,6 +19,7 @@ export default function PropertyDetail() {
   const { id } = useParams();
   const { data, setPaid } = useData();
   const [addUnitOpen, setAddUnitOpen] = useState(false);
+  const [openUnit, setOpenUnit] = useState(null);
   const [avail, setAvail] = useState("all");
   const ix = indexes(data);
   const property = ix.properties[id];
@@ -30,6 +32,14 @@ export default function PropertyDetail() {
       </div>
     );
   }
+
+  const meta = [
+    property.type,
+    [property.address, property.city].filter(Boolean).join(", "),
+    property.plotNumber && `Plot ${property.plotNumber}`,
+    property.landlord && `Landlord: ${property.landlord}`,
+    property.floors && `${property.floors} floors`,
+  ].filter(Boolean).join(" · ");
 
   const units = unitRows(data, id);
   const months = collectionsByMonth(data, 6, id);
@@ -51,7 +61,7 @@ export default function PropertyDetail() {
       <div className="page-header">
         <div>
           <h1 className="page-title">{property.name}</h1>
-          <p className="page-sub">{property.address} · {property.city}</p>
+          <p className="page-sub">{meta || "—"}</p>
         </div>
         <div className="page-actions">
           <button className="btn btn-primary" onClick={() => setAddUnitOpen(true)}>
@@ -132,10 +142,15 @@ export default function PropertyDetail() {
                 ? 0
                 : ((docs[u.lease.id]?.contract ? 1 : 0) + (docs[u.lease.id]?.cheques?.length || 0));
               return (
-                <tr key={u.unit.id} className={u.status === "overdue" ? "row-overdue" : ""}>
+                <tr
+                  key={u.unit.id}
+                  className={`row-click ${u.status === "overdue" ? "row-overdue" : ""}`}
+                  onClick={() => setOpenUnit(u.unit.id)}
+                >
                   <td style={{ fontWeight: 600 }}>{u.unit.label}</td>
                   <td className="t-muted">
-                    {u.unit.beds === 0 ? "Studio" : `${u.unit.beds} bed`} · {u.unit.sqft} sqft
+                    {u.unit.unitType || (u.unit.beds === 0 ? "Studio" : `${u.unit.beds} bed`)}
+                    {u.unit.sqft ? ` · ${u.unit.sqft} sqft` : ""}
                   </td>
                   <td>
                     {u.vacant ? (
@@ -156,12 +171,12 @@ export default function PropertyDetail() {
                   <td><StatusBadge status={u.status} /></td>
                   <td className="num">
                     {!u.vacant && u.status !== "paid" && (
-                      <button className="btn btn-sm" onClick={() => setPaid(u.currentPaymentId, true)}>
+                      <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setPaid(u.currentPaymentId, true); }}>
                         <Check /> Mark paid
                       </button>
                     )}
                     {!u.vacant && u.status === "paid" && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => setPaid(u.currentPaymentId, false)}>
+                      <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setPaid(u.currentPaymentId, false); }}>
                         Undo
                       </button>
                     )}
@@ -187,7 +202,116 @@ export default function PropertyDetail() {
       </section>
 
       <AddUnitDrawer open={addUnitOpen} onClose={() => setAddUnitOpen(false)} propertyId={id} />
+      {openUnit && (
+        <UnitDetailDrawer key={openUnit} unitId={openUnit} onClose={() => setOpenUnit(null)} />
+      )}
     </div>
+  );
+}
+
+function UnitDetailDrawer({ unitId, onClose }) {
+  const { data, updateUnit } = useData();
+  const ix = indexes(data);
+  const unit = ix.units[unitId];
+  const lease = activeLeases(data).find((l) => l.unitId === unitId);
+  const tenant = lease ? ix.tenants[lease.tenantId] : null;
+  const cur = lease ? data.payments.find((p) => p.leaseId === lease.id && p.period === CUR_PERIOD) : null;
+  const status = lease ? (cur ? paymentStatus(cur) : "due") : "vacant";
+
+  const [form, setForm] = useState({
+    label: unit.label,
+    unitType: unit.unitType || "",
+    beds: String(unit.beds ?? 0),
+    baths: String(unit.baths ?? 1),
+    sqft: String(unit.sqft ?? 0),
+    marketRent: String(unit.marketRent ?? 0),
+  });
+  const [error, setError] = useState("");
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  function save(e) {
+    e.preventDefault();
+    const label = form.label.trim();
+    if (!label) return setError("Unit label is required.");
+    updateUnit(unitId, {
+      label,
+      unitType: form.unitType || undefined,
+      beds: Number(form.beds) || 0,
+      baths: Number(form.baths) || 1,
+      sqft: Number(form.sqft) || 0,
+      marketRent: Number(form.marketRent) || 0,
+    });
+    onClose();
+  }
+
+  return (
+    <Drawer
+      open
+      onClose={onClose}
+      title={`Unit ${unit.label}`}
+      subtitle={ix.properties[unit.propertyId]?.name}
+      footer={
+        <>
+          <button className="btn btn-ghost" type="button" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" form="edit-unit" type="submit">Save changes</button>
+        </>
+      }
+    >
+      <div style={{ marginBottom: 16 }}>
+        <StatusBadge status={status} />
+      </div>
+
+      {tenant ? (
+        <div className="detail-list" style={{ marginBottom: 20 }}>
+          <div className="detail-row">
+            <span className="k">Tenant</span>
+            <span className="v">
+              <span className="cell-tenant" style={{ justifyContent: "flex-end" }}>
+                <span className="avatar avatar-sm">{initials(tenant.name)}</span>
+                {tenant.name}
+              </span>
+            </span>
+          </div>
+          <div className="detail-row"><span className="k">Lease rent</span><span className="v">{fmtMoney(lease.rent)}/mo</span></div>
+        </div>
+      ) : (
+        <p className="t-muted" style={{ marginBottom: 18, fontSize: 13 }}>
+          This unit is vacant. Add a tenant from the Tenants page to start a lease.
+        </p>
+      )}
+
+      <h3 className="t-h3" style={{ marginBottom: 12 }}>Unit details</h3>
+      <form id="edit-unit" onSubmit={save} className="form-grid">
+        <label className="field">
+          <span>Unit label</span>
+          <input className="input" value={form.label} onChange={(e) => set("label", e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Unit type</span>
+          <select className="select" value={form.unitType} onChange={(e) => set("unitType", e.target.value)}>
+            <option value="">—</option>
+            {UNIT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span>Bedrooms</span>
+          <input className="input" type="number" min="0" value={form.beds} onChange={(e) => set("beds", e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Bathrooms</span>
+          <input className="input" type="number" min="0" step="0.5" value={form.baths} onChange={(e) => set("baths", e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Size (sqft)</span>
+          <input className="input" type="number" min="0" value={form.sqft} onChange={(e) => set("sqft", e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Market rent (AED)</span>
+          <input className="input" type="number" min="0" value={form.marketRent} onChange={(e) => set("marketRent", e.target.value)} />
+        </label>
+        {error && <p className="form-error full">{error}</p>}
+      </form>
+    </Drawer>
   );
 }
 

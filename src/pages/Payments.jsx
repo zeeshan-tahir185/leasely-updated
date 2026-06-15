@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Search, Check, Download, Building2 } from "lucide-react";
 import { useData } from "../data/store";
 import { paymentRows, availablePeriods, STATUS_LABEL } from "../lib/domain";
-import { fmtMoney, fmtDateLong, periodLabelLong, initials, CUR_PERIOD } from "../lib/format";
+import { fmtMoney, fmtDateLong, periodLabelLong, initials, CUR_PERIOD, phoneMatch } from "../lib/format";
 import { downloadCsv } from "../lib/export";
 import StatusBadge from "../components/StatusBadge";
 import MultiSelect from "../components/MultiSelect";
@@ -27,7 +27,7 @@ export default function Payments() {
     if (!q) return true;
     return (
       r.tenant.name.toLowerCase().includes(q) ||
-      (r.tenant.phone || "").toLowerCase().includes(q) ||
+      phoneMatch(r.tenant.phone, q) ||
       `${r.property.name} ${r.unit.label}`.toLowerCase().includes(q)
     );
   });
