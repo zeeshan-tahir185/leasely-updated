@@ -42,7 +42,7 @@ export default function Dashboard() {
           tone="primary"
           hint={
             <>
-              of {fmtMoney(s.expected)} expected
+              {s.collectedPct}% of what's due
               {deltaPct != null && (
                 <>
                   {" · "}
@@ -70,11 +70,11 @@ export default function Dashboard() {
           hint={`${s.occupiedUnits} of ${s.totalUnits} units leased`}
         />
         <StatCard
-          label="Monthly revenue"
-          value={fmtMoney(s.monthlyRevenue)}
+          label="Due this month"
+          value={fmtMoney(s.expected)}
           Icon={TrendingUp}
           tone="accent"
-          hint={`${s.activeLeases} active leases`}
+          hint={s.dueCount === 0 ? "no cheques fall this month" : `${s.dueCount} cheque${s.dueCount === 1 ? "" : "s"} due`}
         />
       </div>
 

@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Check, Building2, Plus, Paperclip } from "lucide-react";
 import { useData } from "../data/store";
-import { indexes, unitRows, propertyRows, collectionsByMonth, activeLeases, paymentStatus } from "../lib/domain";
-import { fmtMoney, initials, CUR_PERIOD } from "../lib/format";
+import { indexes, unitRows, propertyRows, collectionsByMonth, activeLeases, monthStatusFromPays } from "../lib/domain";
+import { fmtMoney, initials } from "../lib/format";
 import { UNIT_TYPES } from "../lib/constants";
 import StatusBadge from "../components/StatusBadge";
 import Drawer from "../components/Drawer";
+import TenantDetailDrawer from "../components/TenantDetailDrawer";
 import CollectionsChart from "../components/charts/CollectionsChart";
 
 const AVAIL = [
@@ -20,6 +21,7 @@ export default function PropertyDetail() {
   const { data, setPaid } = useData();
   const [addUnitOpen, setAddUnitOpen] = useState(false);
   const [openUnit, setOpenUnit] = useState(null);
+  const [openTenant, setOpenTenant] = useState(null);
   const [avail, setAvail] = useState("all");
   const ix = indexes(data);
   const property = ix.properties[id];
@@ -77,14 +79,20 @@ export default function PropertyDetail() {
           <div className="stat-hint">{rollup.occupancyPct}% occupancy</div>
         </div>
         <div className="card stat-card">
-          <span className="t-label">Monthly rent</span>
-          <div className="stat-value tnum">{fmtMoney(rollup.monthlyRevenue)}</div>
-          <div className="stat-hint">at full collection</div>
+          <span className="t-label">Due this month</span>
+          <div className="stat-value tnum">{fmtMoney(rollup.dueThisMonth)}</div>
+          <div className="stat-hint">
+            {rollup.dueCount === 0
+              ? "no cheques fall this month"
+              : `${rollup.dueCount} cheque${rollup.dueCount === 1 ? "" : "s"} due`}
+          </div>
         </div>
         <div className="card stat-card">
           <span className="t-label">Collected this month</span>
           <div className="stat-value tnum">{fmtMoney(rollup.collected)}</div>
-          <div className="stat-hint">of {fmtMoney(rollup.expected)} due</div>
+          <div className="stat-hint">
+            {rollup.expected ? `${rollup.collectedPct}% of what's due` : "nothing outstanding"}
+          </div>
         </div>
         <div className="card stat-card">
           <span className="t-label">Overdue</span>
@@ -147,7 +155,16 @@ export default function PropertyDetail() {
                   className={`row-click ${u.status === "overdue" ? "row-overdue" : ""}`}
                   onClick={() => setOpenUnit(u.unit.id)}
                 >
-                  <td style={{ fontWeight: 600 }}>{u.unit.label}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="cell-link"
+                      style={{ fontWeight: 600 }}
+                      onClick={(e) => { e.stopPropagation(); setOpenUnit(u.unit.id); }}
+                    >
+                      {u.unit.label}
+                    </button>
+                  </td>
                   <td className="t-muted">
                     {u.unit.unitType || (u.unit.beds === 0 ? "Studio" : `${u.unit.beds} bed`)}
                     {u.unit.sqft ? ` · ${u.unit.sqft} sqft` : ""}
@@ -157,8 +174,14 @@ export default function PropertyDetail() {
                       <span className="t-faint">—</span>
                     ) : (
                       <div className="cell-tenant">
-                        <span className="avatar avatar-sm">{initials(u.tenant.name)}</span>
-                        <span className="tn-name">{u.tenant.name}</span>
+                        <button
+                          type="button"
+                          className="cell-link cell-link-tenant"
+                          onClick={(e) => { e.stopPropagation(); setOpenTenant(u.lease.id); }}
+                        >
+                          <span className="avatar avatar-sm">{initials(u.tenant.name)}</span>
+                          <span className="tn-name">{u.tenant.name}</span>
+                        </button>
                         {docCount > 0 && (
                           <span className="doc-chip" title={`${docCount} document${docCount > 1 ? "s" : ""} on file`}>
                             <Paperclip /> {docCount}
@@ -170,15 +193,18 @@ export default function PropertyDetail() {
                   <td className="num">{u.vacant ? <span className="t-faint">{fmtMoney(u.unit.marketRent)}</span> : fmtMoney(u.lease.rent)}</td>
                   <td><StatusBadge status={u.status} /></td>
                   <td className="num">
-                    {!u.vacant && u.status !== "paid" && (
+                    {u.currentPaymentId && u.status !== "paid" && (
                       <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setPaid(u.currentPaymentId, true); }}>
                         <Check /> Mark paid
                       </button>
                     )}
-                    {!u.vacant && u.status === "paid" && (
+                    {u.currentPaymentId && u.status === "paid" && (
                       <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setPaid(u.currentPaymentId, false); }}>
                         Undo
                       </button>
+                    )}
+                    {!u.vacant && !u.currentPaymentId && (
+                      <span className="t-faint">No cheque due</span>
                     )}
                     {u.vacant && (
                       <span className="badge badge-neutral"><Building2 strokeWidth={2.5} /> Available</span>
@@ -205,6 +231,7 @@ export default function PropertyDetail() {
       {openUnit && (
         <UnitDetailDrawer key={openUnit} unitId={openUnit} onClose={() => setOpenUnit(null)} />
       )}
+      <TenantDetailDrawer leaseId={openTenant} onClose={() => setOpenTenant(null)} />
     </div>
   );
 }
@@ -215,8 +242,8 @@ function UnitDetailDrawer({ unitId, onClose }) {
   const unit = ix.units[unitId];
   const lease = activeLeases(data).find((l) => l.unitId === unitId);
   const tenant = lease ? ix.tenants[lease.tenantId] : null;
-  const cur = lease ? data.payments.find((p) => p.leaseId === lease.id && p.period === CUR_PERIOD) : null;
-  const status = lease ? (cur ? paymentStatus(cur) : "due") : "vacant";
+  const pays = lease ? data.payments.filter((p) => p.leaseId === lease.id) : [];
+  const status = lease ? monthStatusFromPays(pays).status : "vacant";
 
   const [form, setForm] = useState({
     label: unit.label,

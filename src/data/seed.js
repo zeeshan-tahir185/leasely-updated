@@ -18,6 +18,7 @@ const units = [
   { id: "u-b102", propertyId: "p-birch", label: "102", beds: 1, baths: 1, sqft: 780, marketRent: 10500 },
   { id: "u-b201", propertyId: "p-birch", label: "201", beds: 1, baths: 1, sqft: 800, marketRent: 10800 },
   { id: "u-b202", propertyId: "p-birch", label: "202", beds: 2, baths: 2, sqft: 1150, marketRent: 16500 },
+  { id: "u-b203", propertyId: "p-birch", label: "203", beds: 1, baths: 1, sqft: 810, marketRent: 10700 },
   { id: "u-h1", propertyId: "p-harbor", label: "TH-1", beds: 3, baths: 3, sqft: 2100, marketRent: 22000 },
   { id: "u-h2", propertyId: "p-harbor", label: "TH-2", beds: 3, baths: 3, sqft: 2100, marketRent: 22000 },
   { id: "u-h3", propertyId: "p-harbor", label: "TH-3", beds: 2, baths: 2, sqft: 1650, marketRent: 17000 },
@@ -34,11 +35,17 @@ const leaseSpec = [
   { unit: "u-m1b", name: "Daniel Okafor", email: "d.okafor@outlook.com", phone: "+971 52 555 0192", rent: 9500, dueDay: 1, since: 7, june: "overdue" },
   { unit: "u-m2a", name: "Priya Nair", email: "priya.nair@gmail.com", phone: "+971 50 555 0173", rent: 14000, dueDay: 1, since: 14, june: "paid" },
   { unit: "u-m2b", name: "Omar & Lina Haddad", email: "haddad.home@gmail.com", phone: "+971 55 555 0119", rent: 14000, dueDay: 5, since: 5, june: "paid" },
-  // u-m3a vacant
+  // Quarterly tenant (4 cheques/year): rent is the monthly equivalent; the cheque
+  // is AED 46,500 and lands only every 3rd month, one of which is due this month.
+  { unit: "u-m3a", name: "Yusuf Al-Karim", email: "yusuf.karim@gmail.com", phone: "+971 50 555 0136", rent: 15500, dueDay: 28, since: 7, june: "due", installments: 4 },
   { unit: "u-b101", name: "Jordan Lee", email: "jordan.lee@gmail.com", phone: "+971 56 555 0204", rent: 6800, dueDay: 1, since: 3, june: "overdue" },
   { unit: "u-b102", name: "Sofia Romano", email: "sofia.romano@gmail.com", phone: "+971 50 555 0166", rent: 10500, dueDay: 1, since: 11, june: "paid" },
   { unit: "u-b201", name: "Marcus Webb", email: "marcus.webb@gmail.com", phone: "+971 52 555 0131", rent: 10800, dueDay: 15, since: 6, june: "due" },
-  // u-b202 vacant
+  // Quarterly tenant mid-cycle: cheques landed in Feb and May (paid), so nothing
+  // is due this month — should read "Paid up", not "Due". (`chequeOffset` shifts
+  // the cadence so the current month is between cheques.)
+  { unit: "u-b202", name: "Aisha Demir", email: "aisha.demir@gmail.com", phone: "+971 55 555 0127", rent: 16500, dueDay: 5, since: 8, june: "paid", installments: 4, chequeOffset: 1 },
+  // u-b203 vacant
   { unit: "u-h1", name: "The Al-Rashid Family", email: "alrashid.fam@gmail.com", phone: "+971 50 555 0177", rent: 22000, dueDay: 1, since: 18, june: "paid" },
   { unit: "u-h2", name: "Hannah Schmidt", email: "h.schmidt@gmail.com", phone: "+971 55 555 0155", rent: 22000, dueDay: 5, since: 4, june: "overdue" },
   { unit: "u-h3", name: "Ravi Patel", email: "ravi.patel@gmail.com", phone: "+971 50 555 0188", rent: 17000, dueDay: 1, since: 8, june: "paid" },
@@ -65,6 +72,10 @@ export function buildSeed() {
 
     const startPeriod = addMonthsKey(CUR_PERIOD, -s.since);
     const startISO = `${startPeriod}-${pad(s.dueDay)}`;
+    // Cheque cadence: monthly unless the lease pays in N installments a year.
+    // 4 cheques → one every 3 months; each cheque is the year's rent split N ways.
+    const monthsPer = s.installments ? Math.round(12 / s.installments) : 1;
+    const chequeAmount = s.installments ? Math.round((s.rent * 12) / s.installments) : s.rent;
     leases.push({
       id: leaseId,
       unitId: s.unit,
@@ -74,10 +85,15 @@ export function buildSeed() {
       deposit: s.rent,
       startDate: startISO,
       status: "active",
+      ...(s.installments ? { installments: s.installments } : {}),
     });
 
-    periods.forEach((period) => {
+    periods.forEach((period, idx) => {
       if (period < startPeriod) return; // lease hadn't begun yet
+      // Installment leases only have a cheque on cadence months, counted back from
+      // the current month (idx 5). `chequeOffset` shifts the cadence so a lease can
+      // be mid-cycle (no cheque due this month); 0 means a cheque lands this month.
+      if (s.installments && (periods.length - 1 - idx - (s.chequeOffset || 0)) % monthsPer !== 0) return;
       const dueDate = `${period}-${pad(s.dueDay)}`;
       const isCurrent = period === CUR_PERIOD;
       let paidDate = null;
@@ -100,7 +116,7 @@ export function buildSeed() {
         leaseId,
         period,
         dueDate,
-        amount: s.rent,
+        amount: chequeAmount,
         paidDate,
       });
     });

@@ -11,7 +11,7 @@ export default function Analytics() {
   const { data } = useData();
   const s = summary(data);
   const months = collectionsByMonth(data, 6);
-  const buildings = propertyRows(data).sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
+  const buildings = propertyRows(data).sort((a, b) => b.annualRent - a.annualRent);
 
   return (
     <div className="page">
@@ -29,18 +29,18 @@ export default function Analytics() {
 
       <div className="kpi-grid">
         <StatCard
-          label="Monthly revenue"
-          value={fmtMoney(s.monthlyRevenue)}
+          label="Due this month"
+          value={fmtMoney(s.expected)}
           Icon={TrendingUp}
           tone="accent"
-          hint={`${s.activeLeases} active leases`}
+          hint={s.dueCount === 0 ? "no cheques fall this month" : `${s.dueCount} cheque${s.dueCount === 1 ? "" : "s"} due`}
         />
         <StatCard
           label="Collected this month"
           value={`${s.collectedPct}%`}
           Icon={Wallet}
           tone="primary"
-          hint={`${fmtMoney(s.collected)} of ${fmtMoney(s.expected)}`}
+          hint={`${fmtMoney(s.collected)} collected`}
         />
         <StatCard
           label="Occupancy"
@@ -84,14 +84,14 @@ export default function Analytics() {
       <section className="card" style={{ overflow: "hidden", marginTop: 18 }}>
         <div className="panel-head">
           <h3 className="t-h3">By building</h3>
-          <span className="t-muted">Ranked by monthly rent</span>
+          <span className="t-muted">Ranked by annual rent</span>
         </div>
         <table className="table">
           <thead>
             <tr>
               <th>Building</th>
               <th className="num">Occupancy</th>
-              <th className="num">Monthly rent</th>
+              <th className="num">Annual rent</th>
               <th>Collected this month</th>
               <th className="num">Overdue</th>
             </tr>
@@ -109,7 +109,7 @@ export default function Analytics() {
                   </Link>
                 </td>
                 <td className="num tnum">{b.occupancyPct}% <span className="t-faint">({b.occupied}/{b.unitCount})</span></td>
-                <td className="num tnum">{fmtMoney(b.monthlyRevenue)}</td>
+                <td className="num tnum">{fmtMoney(b.annualRent)}</td>
                 <td>
                   <div className="bld-collect">
                     <div className="progress" style={{ flex: 1 }}>

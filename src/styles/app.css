@@ -576,6 +576,33 @@
   color: var(--muted);
 }
 
+/* Inline link inside an otherwise row-clickable cell: resets the button chrome
+   and signals "this opens a detail" with a hover colour shift on the name. */
+.cell-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color var(--dur) var(--ease);
+}
+.cell-link:hover {
+  color: var(--primary);
+}
+.cell-link:hover .tn-name {
+  color: var(--primary);
+}
+.cell-link-tenant {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
 /* ============================================================
    Properties grid
    ============================================================ */
@@ -805,6 +832,9 @@
 .sched-row.overdue {
   border-color: var(--danger-line);
   background: var(--danger-soft);
+}
+.sched-row.paid {
+  background: var(--success-soft);
 }
 .sched-row .sched-date {
   font-weight: 540;

@@ -1,15 +1,13 @@
-import { useMemo, useState } from "react";
-import { Search, Plus, Check, Mail, Phone, FileText, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Search, Plus } from "lucide-react";
 import { useData } from "../data/store";
-import { tenantRows, activeLeases, indexes, paymentStatus } from "../lib/domain";
-import { fmtMoney, fmtDateLong, initials, CUR_PERIOD, periodLabelLong, phoneMatch } from "../lib/format";
-import { fileToCompressedDataUrl } from "../lib/image";
+import { tenantRows, activeLeases, STATUS_LABEL } from "../lib/domain";
+import { fmtMoney, initials, phoneMatch, isoOf, parseISO } from "../lib/format";
 import StatusBadge from "../components/StatusBadge";
 import Drawer from "../components/Drawer";
-import Dropzone from "../components/Dropzone";
-import Lightbox from "../components/Lightbox";
+import TenantDetailDrawer from "../components/TenantDetailDrawer";
 
-const FILTERS = ["all", "paid", "due", "overdue"];
+const FILTERS = ["all", "paid", "settled", "due", "overdue", "ended"];
 
 const INSTALLMENT_OPTIONS = [
   { n: 1, label: "1 cheque · annual" },
@@ -20,6 +18,29 @@ const INSTALLMENT_OPTIONS = [
   { n: 12, label: "12 cheques · monthly" },
 ];
 
+// Summarise the lease that the current form inputs would create: term length and
+// how the yearly rent splits into cheques over that term. Returns null if invalid.
+function leasePreview({ rent, installments, startDate, endDate }) {
+  const annual = Number(rent);
+  if (!Number.isFinite(annual) || annual <= 0) return null;
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
+  if (Number.isNaN(+start) || Number.isNaN(+end) || end <= start) return null;
+  const n = Math.max(1, Number(installments) || 1);
+  const monthsPer = Math.max(1, Math.round(12 / n));
+  const termMonths = Math.max(
+    1,
+    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+  );
+  return {
+    termMonths,
+    chequeCount: Math.ceil(termMonths / monthsPer),
+    perCheque: Math.round(annual / 12) * monthsPer,
+    monthly: Math.round(annual / 12),
+    prorated: termMonths % monthsPer !== 0,
+  };
+}
+
 export default function Tenants() {
   const { data } = useData();
   const [query, setQuery] = useState("");
@@ -28,6 +49,8 @@ export default function Tenants() {
   const [openLease, setOpenLease] = useState(null);
 
   const rows = tenantRows(data);
+  const activeCount = rows.filter((r) => !r.ended).length;
+  const endedCount = rows.length - activeCount;
   const filtered = rows.filter((r) => {
     if (filter !== "all" && r.status !== filter) return false;
     const q = query.trim().toLowerCase();
@@ -45,7 +68,10 @@ export default function Tenants() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Tenants</h1>
-          <p className="page-sub">{rows.length} active leases.</p>
+          <p className="page-sub">
+            {activeCount} active {activeCount === 1 ? "lease" : "leases"}
+            {endedCount > 0 ? ` · ${endedCount} ended` : ""}.
+          </p>
         </div>
         <div className="page-actions">
           <button className="btn btn-primary" onClick={() => setAddOpen(true)}>
@@ -68,7 +94,7 @@ export default function Tenants() {
         <div className="seg">
           {FILTERS.map((f) => (
             <button key={f} data-active={filter === f} onClick={() => setFilter(f)}>
-              {f === "all" ? "All" : f[0].toUpperCase() + f.slice(1)}
+              {f === "all" ? "All" : STATUS_LABEL[f]}
             </button>
           ))}
         </div>
@@ -80,7 +106,7 @@ export default function Tenants() {
             <tr>
               <th>Tenant</th>
               <th>Unit</th>
-              <th className="num">Monthly rent</th>
+              <th className="num">Annual rent</th>
               <th>Status</th>
               <th className="num">Balance</th>
             </tr>
@@ -101,7 +127,7 @@ export default function Tenants() {
                   <div className="tn-name" style={{ fontWeight: 500 }}>{r.unit.label}</div>
                   <div className="tn-sub">{r.property.name}</div>
                 </td>
-                <td className="num">{fmtMoney(r.rent)}</td>
+                <td className="num">{fmtMoney(r.rent * 12)}</td>
                 <td><StatusBadge status={r.status} /></td>
                 <td className="num">
                   {r.balance > 0 ? (
@@ -138,9 +164,15 @@ function AddTenantDrawer({ open, onClose }) {
   const occupied = new Set(activeLeases(data).map((l) => l.unitId));
   const vacant = data.units.filter((u) => !occupied.has(u.id));
 
-  const blank = { name: "", email: "", phone: "", propertyId: "", unitId: "", rent: "", dueDay: "1", installments: "1" };
+  const today = new Date();
+  const oneYearOut = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+  const blank = {
+    name: "", email: "", phone: "", propertyId: "", unitId: "", rent: "", dueDay: "1",
+    installments: "1", startDate: isoOf(today), endDate: isoOf(oneYearOut),
+  };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
+  const plan = leasePreview(form);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const onPickProperty = (propertyId) => setForm((f) => ({ ...f, propertyId, unitId: "", rent: "" }));
@@ -162,6 +194,9 @@ function AddTenantDrawer({ open, onClose }) {
     const dueDay = Number(form.dueDay);
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)
       return setError("Due day must be between 1 and 31.");
+    if (!form.startDate || !form.endDate) return setError("Set the lease start and end dates.");
+    if (parseISO(form.endDate) <= parseISO(form.startDate))
+      return setError("Lease end must be after the start date.");
 
     addTenantLease({ ...form, name, annualRent, dueDay, installments: Number(form.installments) });
     setForm(blank);
@@ -231,6 +266,14 @@ function AddTenantDrawer({ open, onClose }) {
           <span>Rent due day</span>
           <input className="input" type="number" min="1" max="31" value={form.dueDay} onChange={(e) => set("dueDay", e.target.value)} />
         </label>
+        <label className="field">
+          <span>Lease start</span>
+          <input className="input" type="date" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Lease end</span>
+          <input className="input" type="date" min={form.startDate} value={form.endDate} onChange={(e) => set("endDate", e.target.value)} />
+        </label>
         <label className="field full">
           <span>Payment plan (cheques per year)</span>
           <select className="select" value={form.installments} onChange={(e) => set("installments", e.target.value)}>
@@ -238,11 +281,10 @@ function AddTenantDrawer({ open, onClose }) {
               <option key={o.n} value={o.n}>{o.label}</option>
             ))}
           </select>
-          {Number(form.rent) > 0 && (
+          {plan && (
             <span className="t-faint" style={{ fontSize: 12 }}>
-              {form.installments} payment{Number(form.installments) > 1 ? "s" : ""} of{" "}
-              {fmtMoney(Math.round(Number(form.rent) / Number(form.installments)))} · about{" "}
-              {fmtMoney(Math.round(Number(form.rent) / 12))}/month.
+              {plan.termMonths}-month term · {plan.chequeCount} cheque{plan.chequeCount > 1 ? "s" : ""} of{" "}
+              {fmtMoney(plan.perCheque)}{plan.prorated ? " (last pro-rated)" : ""} · {fmtMoney(plan.monthly)}/month
             </span>
           )}
         </label>
@@ -250,177 +292,4 @@ function AddTenantDrawer({ open, onClose }) {
       </form>
     </Drawer>
   );
-}
-
-/* ---------- tenant detail ---------- */
-function TenantDetailDrawer({ leaseId, onClose }) {
-  const { data, setPaid } = useData();
-  const detail = useMemo(() => {
-    if (!leaseId) return null;
-    const ix = indexes(data);
-    const lease = ix.leases[leaseId];
-    if (!lease) return null;
-    const tenant = ix.tenants[lease.tenantId];
-    const unit = ix.units[lease.unitId];
-    const property = ix.properties[unit.propertyId];
-    const payments = data.payments
-      .filter((p) => p.leaseId === leaseId)
-      .sort((a, b) => b.period.localeCompare(a.period));
-    return { lease, tenant, unit, property, payments };
-  }, [leaseId, data]);
-
-  if (!detail) return <Drawer open={false} onClose={onClose} />;
-  const { lease, tenant, unit, property, payments } = detail;
-
-  return (
-    <Drawer open={!!leaseId} onClose={onClose} title="Tenant">
-      <div className="drawer-tenant">
-        <span className="avatar">{initials(tenant.name)}</span>
-        <div>
-          <div className="t-h2">{tenant.name}</div>
-          <div className="t-muted">{property.name} · Unit {unit.label}</div>
-        </div>
-      </div>
-
-      <div className="detail-list" style={{ marginBottom: 22 }}>
-        <div className="detail-row"><span className="k"><Mail size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Email</span><span className="v">{tenant.email || "—"}</span></div>
-        <div className="detail-row"><span className="k"><Phone size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Phone</span><span className="v">{tenant.phone || "—"}</span></div>
-        <div className="detail-row"><span className="k">Yearly rent</span><span className="v">{fmtMoney(lease.rent * 12)}</span></div>
-        <div className="detail-row"><span className="k">Monthly rent</span><span className="v">{fmtMoney(lease.rent)}</span></div>
-        <div className="detail-row"><span className="k">Security deposit</span><span className="v">{fmtMoney(lease.deposit)}</span></div>
-        <div className="detail-row"><span className="k">Lease started</span><span className="v">{fmtDateLong(lease.startDate)}</span></div>
-        <div className="detail-row"><span className="k">Rent due</span><span className="v">{lease.dueDay}{ordinal(lease.dueDay)} of the month</span></div>
-        <div className="detail-row"><span className="k">Payment plan</span><span className="v">{lease.installments ? (lease.installments === 1 ? "1 cheque · annual" : `${lease.installments} cheques / year`) : "Monthly"}</span></div>
-      </div>
-
-      <DocumentsSection leaseId={lease.id} />
-
-      <h3 className="t-h3" style={{ marginBottom: 10 }}>Payment schedule</h3>
-      <div className="sched">
-        {payments.map((p) => {
-          const st = paymentStatus(p);
-          const isCurrent = p.period === CUR_PERIOD;
-          return (
-            <div key={p.id} className={`sched-row ${st === "overdue" ? "overdue" : ""}`}>
-              <div>
-                <div className="sched-date">{periodLabelLong(p.period)}</div>
-                <div className="t-faint" style={{ fontSize: 12 }}>
-                  {st === "paid" ? `Paid ${fmtDateLong(p.paidDate)}` : `Due ${fmtDateLong(p.dueDate)}`}
-                </div>
-              </div>
-              <span className="sched-amt">{fmtMoney(p.amount)}</span>
-              {isCurrent || st !== "paid" ? (
-                <button
-                  className={`btn btn-sm ${p.paidDate ? "btn-ghost" : "btn-primary"}`}
-                  onClick={() => setPaid(p.id, !p.paidDate)}
-                >
-                  {p.paidDate ? "Undo" : <><Check /> Mark paid</>}
-                </button>
-              ) : (
-                <StatusBadge status={st} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </Drawer>
-  );
-}
-
-/* ---------- documents (contract + cheques) ---------- */
-function DocumentsSection({ leaseId }) {
-  const { data, attachDocument, removeDocument } = useData();
-  const docs = (data.documents || {})[leaseId] || { contract: null, cheques: [] };
-  const [preview, setPreview] = useState(null);
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
-
-  async function add(kind, files) {
-    setBusy(kind);
-    setError("");
-    try {
-      for (const file of files) {
-        const dataUrl = await fileToCompressedDataUrl(file);
-        attachDocument(leaseId, kind, { name: file.name, dataUrl, addedAt: Date.now() });
-      }
-    } catch (e) {
-      setError(e.message || "Could not add that file.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  return (
-    <div className="docs">
-      <h3 className="t-h3" style={{ marginBottom: 10 }}>Documents</h3>
-
-      <div className="doc-group">
-        <div className="doc-label"><FileText size={14} /> Tenancy contract</div>
-        {docs.contract ? (
-          <div className="doc-grid">
-            <DocThumb
-              doc={docs.contract}
-              onOpen={() => setPreview(docs.contract)}
-              onRemove={() => removeDocument(leaseId, "contract")}
-            />
-          </div>
-        ) : (
-          <Dropzone
-            onFiles={(files) => add("contract", files)}
-            busy={busy === "contract"}
-            hint="Photo or scan of the signed contract"
-          />
-        )}
-      </div>
-
-      <div className="doc-group">
-        <div className="doc-label"><FileText size={14} /> Cheques {docs.cheques.length > 0 && <span className="t-faint">· {docs.cheques.length}</span>}</div>
-        {docs.cheques.length > 0 && (
-          <div className="doc-grid">
-            {docs.cheques.map((c, i) => (
-              <DocThumb
-                key={i}
-                doc={c}
-                onOpen={() => setPreview(c)}
-                onRemove={() => removeDocument(leaseId, "cheque", i)}
-              />
-            ))}
-          </div>
-        )}
-        <Dropzone
-          onFiles={(files) => add("cheque", files)}
-          multiple
-          busy={busy === "cheque"}
-          hint="Add one or more cheque photos"
-        />
-      </div>
-
-      {error && <p className="form-error">{error}</p>}
-      <Lightbox src={preview?.dataUrl} alt={preview?.name} onClose={() => setPreview(null)} />
-    </div>
-  );
-}
-
-function DocThumb({ doc, onOpen, onRemove }) {
-  return (
-    <figure className="doc-thumb">
-      <button type="button" className="doc-thumb-img" onClick={onOpen} aria-label={`Open ${doc.name}`}>
-        <img src={doc.dataUrl} alt={doc.name} />
-      </button>
-      <button
-        type="button"
-        className="doc-remove icon-btn"
-        onClick={onRemove}
-        aria-label={`Remove ${doc.name}`}
-      >
-        <Trash2 />
-      </button>
-    </figure>
-  );
-}
-
-function ordinal(n) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return s[(v - 20) % 10] || s[v] || s[0];
 }

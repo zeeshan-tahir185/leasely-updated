@@ -62,8 +62,8 @@ export default function Properties() {
                 <div className="v">{r.occupancyPct}%</div>
               </div>
               <div className="prop-stat">
-                <div className="k">Monthly rent</div>
-                <div className="v">{fmtMoney(r.monthlyRevenue)}</div>
+                <div className="k">Due this month</div>
+                <div className="v">{r.dueThisMonth > 0 ? fmtMoney(r.dueThisMonth) : "—"}</div>
               </div>
               <div className="prop-stat">
                 <div className="k">Vacant</div>
@@ -72,15 +72,24 @@ export default function Properties() {
             </div>
 
             <div className="prop-foot">
-              <div className="prop-collect">
-                <span className="t-muted">Collected this month</span>
-                <span className="tnum" style={{ fontWeight: 600 }}>
-                  {fmtMoney(r.collected)} / {fmtMoney(r.expected)}
-                </span>
-              </div>
-              <div className="progress">
-                <i style={{ width: `${r.collectedPct}%` }} />
-              </div>
+              {r.expected > 0 ? (
+                <>
+                  <div className="prop-collect">
+                    <span className="t-muted">Collected this month</span>
+                    <span className="tnum" style={{ fontWeight: 600 }}>
+                      {fmtMoney(r.collected)} / {fmtMoney(r.expected)}
+                    </span>
+                  </div>
+                  <div className="progress">
+                    <i style={{ width: `${r.collectedPct}%` }} />
+                  </div>
+                </>
+              ) : (
+                <div className="prop-collect">
+                  <span className="t-muted">No cheques fall this month</span>
+                  <span className="t-faint">—</span>
+                </div>
+              )}
             </div>
           </Link>
         ))}

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { buildSeed } from "./seed";
-import { isoOf } from "../lib/format";
+import { isoOf, parseISO } from "../lib/format";
 
 const KEY = "hearth:data:v1";
 const DataCtx = createContext(null);
@@ -177,30 +177,38 @@ export function DataProvider({ children }) {
           return { ...d, documents };
         });
       },
-      addTenantLease({ name, email, phone, unitId, annualRent, dueDay, installments = 1 }) {
+      addTenantLease({ name, email, phone, unitId, annualRent, dueDay, installments = 1, startDate, endDate }) {
         setData((d) => {
           const tid = `t-${crypto.randomUUID().slice(0, 8)}`;
           const lid = `l-${crypto.randomUUID().slice(0, 8)}`;
-          const now = new Date();
           const pad = (n) => String(n).padStart(2, "0");
-          // Rent is entered yearly; store a monthly figure for the rest of the app.
+          // Rent is entered as a yearly rate; store a monthly figure for the rest of the app.
           const yearly = Number(annualRent);
           const monthlyRent = Math.round(yearly / 12);
           const dd = Number(dueDay);
-          // Split the year's rent into N cheques, due every (12/N) months.
+          // A lease can run any length, not just a year. Emit cheques on the chosen
+          // cadence (every 12/N months) across the term, pro-rating a short final period.
           const n = Math.max(1, Number(installments) || 1);
           const monthsPer = Math.max(1, Math.round(12 / n));
-          const chequeAmount = Math.round(yearly / n);
+          const start = startDate ? parseISO(startDate) : new Date();
+          const end = endDate
+            ? parseISO(endDate)
+            : new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
+          const termMonths = Math.max(
+            1,
+            (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+          );
           const payments = [];
-          for (let i = 0; i < n; i++) {
-            const dt = new Date(now.getFullYear(), now.getMonth() + i * monthsPer, 1);
+          for (let m = 0; m < termMonths; m += monthsPer) {
+            const dt = new Date(start.getFullYear(), start.getMonth() + m, 1);
             const period = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}`;
+            const covered = Math.min(monthsPer, termMonths - m); // short final cheque is pro-rated
             payments.push({
               id: `pay-${lid}-${period}`,
               leaseId: lid,
               period,
               dueDate: `${period}-${pad(dd)}`,
-              amount: chequeAmount,
+              amount: monthlyRent * covered,
               paidDate: null,
             });
           }
@@ -216,7 +224,8 @@ export function DataProvider({ children }) {
                 rent: monthlyRent,
                 dueDay: dd,
                 deposit: monthlyRent,
-                startDate: isoOf(now),
+                startDate: isoOf(start),
+                endDate: isoOf(end),
                 status: "active",
                 installments: n,
               },

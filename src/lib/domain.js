@@ -8,7 +8,23 @@ export function paymentStatus(p) {
   return parseISO(p.dueDate) < TODAY ? "overdue" : "due";
 }
 
-export const STATUS_LABEL = { paid: "Paid", due: "Due", overdue: "Overdue", vacant: "Vacant" };
+// A lease is "ended" once its end date has passed. Open-ended leases (the seed
+// leases, which carry no end date) never expire on their own.
+export function leaseEnded(lease) {
+  return Boolean(lease.endDate) && parseISO(lease.endDate) < TODAY;
+}
+
+export const STATUS_LABEL = { paid: "Paid", due: "Due", overdue: "Overdue", vacant: "Vacant", settled: "Paid up", ended: "Ended" };
+
+// Status of a lease for the current month. With cheque schedules a lease can have
+// no payment due this month at all; that reads as "settled" (paid up) unless an
+// earlier cheque is still unpaid, which is genuine arrears → "overdue".
+export function monthStatusFromPays(pays) {
+  const cur = pays.find((p) => p.period === CUR_PERIOD);
+  if (cur) return { status: paymentStatus(cur), currentPaymentId: cur.id };
+  const arrears = pays.some((p) => !p.paidDate && parseISO(p.dueDate) < TODAY);
+  return { status: arrears ? "overdue" : "settled", currentPaymentId: undefined };
+}
 
 export function indexes(data) {
   return {
@@ -19,8 +35,10 @@ export function indexes(data) {
   };
 }
 
+// Leases currently occupying a unit: active and not past their end date. An ended
+// lease frees its unit, so it drops out of occupancy, revenue, and re-leasing.
 export function activeLeases(data) {
-  return data.leases.filter((l) => l.status === "active");
+  return data.leases.filter((l) => l.status === "active" && !leaseEnded(l));
 }
 
 // KPI summary for the current month.
@@ -32,6 +50,7 @@ export function summary(data) {
 
   let expected = 0;
   let collected = 0;
+  let dueCount = 0;
   const overdueLeases = new Set();
   let overdueAmount = 0;
 
@@ -39,6 +58,7 @@ export function summary(data) {
     const st = paymentStatus(p);
     if (p.period === CUR_PERIOD) {
       expected += p.amount;
+      dueCount += 1;
       if (st === "paid") collected += p.amount;
     }
     if (st === "overdue") {
@@ -50,6 +70,7 @@ export function summary(data) {
   return {
     expected,
     collected,
+    dueCount,
     outstanding: expected - collected,
     collectedPct: expected ? Math.round((collected / expected) * 100) : 0,
     overdueCount: overdueLeases.size,
@@ -94,31 +115,38 @@ export function collectionsByMonth(data, n = 6, propertyId = null) {
   }));
 }
 
-// One row per active lease, joined for the tenants table.
+// One row per lease for the tenants table. Ended leases stay listed as a record,
+// flagged so the table can badge them "Ended" rather than a current-month status.
 export function tenantRows(data) {
   const ix = indexes(data);
   const paymentsByLease = {};
   for (const p of data.payments) (paymentsByLease[p.leaseId] ||= []).push(p);
 
-  return activeLeases(data).map((lease) => {
-    const tenant = ix.tenants[lease.tenantId];
-    const unit = ix.units[lease.unitId];
-    const property = ix.properties[unit.propertyId];
-    const pays = paymentsByLease[lease.id] || [];
-    const current = pays.find((p) => p.period === CUR_PERIOD);
-    const balance = pays.filter((p) => !p.paidDate).reduce((s, p) => s + p.amount, 0);
-    return {
-      leaseId: lease.id,
-      tenant,
-      unit,
-      property,
-      rent: lease.rent,
-      dueDay: lease.dueDay,
-      status: current ? paymentStatus(current) : "due",
-      currentPaymentId: current?.id,
-      balance,
-    };
-  });
+  return data.leases
+    .filter((l) => l.status === "active")
+    .map((lease) => {
+      const tenant = ix.tenants[lease.tenantId];
+      const unit = ix.units[lease.unitId];
+      const property = ix.properties[unit.propertyId];
+      const pays = paymentsByLease[lease.id] || [];
+      const ended = leaseEnded(lease);
+      const { status, currentPaymentId } = ended
+        ? { status: "ended", currentPaymentId: undefined }
+        : monthStatusFromPays(pays);
+      const balance = pays.filter((p) => !p.paidDate).reduce((s, p) => s + p.amount, 0);
+      return {
+        leaseId: lease.id,
+        tenant,
+        unit,
+        property,
+        rent: lease.rent,
+        dueDay: lease.dueDay,
+        ended,
+        status,
+        currentPaymentId,
+        balance,
+      };
+    });
 }
 
 // Payment ledger rows joined with tenant/unit, newest first within a period.
@@ -145,7 +173,6 @@ export function availablePeriods(data, n = 6) {
 
 // Per-property rollup for the properties grid.
 export function propertyRows(data) {
-  const ix = indexes(data);
   const active = activeLeases(data);
   // Map unitId -> lease. Built explicitly (not via byId) so the lease keeps its
   // own id, which the current-month payment lookup below relies on.
@@ -157,14 +184,19 @@ export function propertyRows(data) {
     const occupied = units.filter((u) => leaseByUnit[u.id]);
     const monthlyRevenue = occupied.reduce((s, u) => s + leaseByUnit[u.id].rent, 0);
 
+    // `expected` / `dueCount` reflect only the cheques whose period is the current
+    // month, so a quarterly (4-cheque) lease counts its full cheque in a due month
+    // and nothing in the months between, rather than a divided monthly average.
     let collected = 0;
     let expected = 0;
     let overdue = 0;
+    let dueCount = 0;
     for (const u of occupied) {
       const lease = leaseByUnit[u.id];
       const cur = data.payments.find((p) => p.leaseId === lease.id && p.period === CUR_PERIOD);
       if (!cur) continue;
       expected += cur.amount;
+      dueCount += 1;
       const st = paymentStatus(cur);
       if (st === "paid") collected += cur.amount;
       if (st === "overdue") overdue += 1;
@@ -176,6 +208,9 @@ export function propertyRows(data) {
       vacant: units.length - occupied.length,
       occupancyPct: units.length ? Math.round((occupied.length / units.length) * 100) : 0,
       monthlyRevenue,
+      annualRent: monthlyRevenue * 12,
+      dueThisMonth: expected,
+      dueCount,
       collected,
       expected,
       collectedPct: expected ? Math.round((collected / expected) * 100) : 0,
@@ -194,14 +229,8 @@ export function unitRows(data, propertyId) {
       const lease = active.find((l) => l.unitId === unit.id);
       if (!lease) return { unit, vacant: true, status: "vacant" };
       const tenant = ix.tenants[lease.tenantId];
-      const cur = data.payments.find((p) => p.leaseId === lease.id && p.period === CUR_PERIOD);
-      return {
-        unit,
-        vacant: false,
-        tenant,
-        lease,
-        status: cur ? paymentStatus(cur) : "due",
-        currentPaymentId: cur?.id,
-      };
+      const pays = data.payments.filter((p) => p.leaseId === lease.id);
+      const { status, currentPaymentId } = monthStatusFromPays(pays);
+      return { unit, vacant: false, tenant, lease, status, currentPaymentId };
     });
 }
