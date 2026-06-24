@@ -1,236 +1,226 @@
-// Pure selectors over the data shape. Keep pages thin.
-import { TODAY, CUR_PERIOD, parseISO, addMonthsKey, periodLabelShort } from "./format";
+// Pure, company-scoped selectors over the database. Pages stay thin.
+import { TODAY, parseISO, CUR_PERIOD, addMonthsKey, periodLabelShort, monthKey } from "./format";
 
-export const byId = (arr) => Object.fromEntries(arr.map((x) => [x.id, x]));
+export const byId = (arr) => Object.fromEntries((arr || []).map((x) => [x.id, x]));
 
-export function paymentStatus(p) {
-  if (p.paidDate) return "paid";
-  return parseISO(p.dueDate) < TODAY ? "overdue" : "due";
+// Collections that belong to the active company. Cross-company rows are dropped
+// so every module only ever sees one company's data.
+const COMPANY_COLLECTIONS = [
+  "towers", "contacts", "contracts", "cheques", "receipts", "vouchers",
+  "bills", "maintenance", "leads", "bookings", "cases", "assets", "meters",
+  "employees", "payroll", "inventoryItems", "purchaseOrders", "documents", "users",
+];
+
+export function scopeData(db, companyId) {
+  const out = {};
+  for (const key of COMPANY_COLLECTIONS) {
+    out[key] = (db[key] || []).filter((r) => !r.companyId || r.companyId === companyId);
+  }
+  // units & readings carry no companyId — scope them through their parent
+  // (a unit belongs to whichever company owns its tower; a reading to its meter).
+  const towerIds = new Set(out.towers.map((t) => t.id));
+  out.units = (db.units || []).filter((u) => towerIds.has(u.towerId));
+  const meterIds = new Set(out.meters.map((m) => m.id));
+  out.readings = (db.readings || []).filter((r) => meterIds.has(r.meterId));
+  out.settings = db.settings;
+  return out;
 }
 
-// A lease is "ended" once its end date has passed. Open-ended leases (the seed
-// leases, which carry no end date) never expire on their own.
-export function leaseEnded(lease) {
-  return Boolean(lease.endDate) && parseISO(lease.endDate) < TODAY;
-}
-
-export const STATUS_LABEL = { paid: "Paid", due: "Due", overdue: "Overdue", vacant: "Vacant", settled: "Paid up", ended: "Ended" };
-
-// Status of a lease for the current month. With cheque schedules a lease can have
-// no payment due this month at all; that reads as "settled" (paid up) unless an
-// earlier cheque is still unpaid, which is genuine arrears → "overdue".
-export function monthStatusFromPays(pays) {
-  const cur = pays.find((p) => p.period === CUR_PERIOD);
-  if (cur) return { status: paymentStatus(cur), currentPaymentId: cur.id };
-  const arrears = pays.some((p) => !p.paidDate && parseISO(p.dueDate) < TODAY);
-  return { status: arrears ? "overdue" : "settled", currentPaymentId: undefined };
-}
-
-export function indexes(data) {
+export function indexAll(s) {
   return {
-    units: byId(data.units),
-    properties: byId(data.properties),
-    tenants: byId(data.tenants),
-    leases: byId(data.leases),
+    towers: byId(s.towers),
+    units: byId(s.units),
+    contacts: byId(s.contacts),
+    contracts: byId(s.contracts),
+    employees: byId(s.employees),
   };
 }
 
-// Leases currently occupying a unit: active and not past their end date. An ended
-// lease frees its unit, so it drops out of occupancy, revenue, and re-leasing.
-export function activeLeases(data) {
-  return data.leases.filter((l) => l.status === "active" && !leaseEnded(l));
+// ---- leasing ----------------------------------------------------------------
+export function activeContracts(s) {
+  return s.contracts.filter((c) => c.status === "active" || c.status === "expiring");
 }
 
-// KPI summary for the current month.
-export function summary(data) {
-  const ix = indexes(data);
-  const active = activeLeases(data);
-  const occupiedUnitIds = new Set(active.map((l) => l.unitId));
-  const totalUnits = data.units.length;
-
-  let expected = 0;
-  let collected = 0;
-  let dueCount = 0;
-  const overdueLeases = new Set();
-  let overdueAmount = 0;
-
-  for (const p of data.payments) {
-    const st = paymentStatus(p);
-    if (p.period === CUR_PERIOD) {
-      expected += p.amount;
-      dueCount += 1;
-      if (st === "paid") collected += p.amount;
-    }
-    if (st === "overdue") {
-      overdueLeases.add(p.leaseId);
-      overdueAmount += p.amount;
-    }
-  }
-
-  return {
-    expected,
-    collected,
-    dueCount,
-    outstanding: expected - collected,
-    collectedPct: expected ? Math.round((collected / expected) * 100) : 0,
-    overdueCount: overdueLeases.size,
-    overdueAmount,
-    occupiedUnits: occupiedUnitIds.size,
-    totalUnits,
-    vacantUnits: totalUnits - occupiedUnitIds.size,
-    occupancyPct: totalUnits ? Math.round((occupiedUnitIds.size / totalUnits) * 100) : 0,
-    activeLeases: active.length,
-    monthlyRevenue: active.reduce((s, l) => s + l.rent, 0),
-    ix,
-  };
+export function isExpiringSoon(contract, leadDays = 60) {
+  if (contract.status === "expired" || contract.status === "terminated") return false;
+  const end = parseISO(contract.endDate);
+  const limit = new Date(TODAY);
+  limit.setDate(limit.getDate() + leadDays);
+  return end >= TODAY && end <= limit;
 }
 
-// Expected vs collected for the trailing `n` months (oldest first).
-// Pass a `propertyId` to scope the trend to a single building.
-export function collectionsByMonth(data, n = 6, propertyId = null) {
-  const periods = Array.from({ length: n }, (_, i) => addMonthsKey(CUR_PERIOD, -(n - 1 - i)));
-  const map = Object.fromEntries(periods.map((p) => [p, { expected: 0, collected: 0 }]));
-
-  let propertyOfLease = null;
-  if (propertyId) {
-    const ix = indexes(data);
-    propertyOfLease = (leaseId) => {
-      const lease = ix.leases[leaseId];
-      const unit = lease && ix.units[lease.unitId];
-      return unit ? unit.propertyId : null;
-    };
-  }
-
-  for (const p of data.payments) {
-    if (!map[p.period]) continue;
-    if (propertyId && propertyOfLease(p.leaseId) !== propertyId) continue;
-    map[p.period].expected += p.amount;
-    if (p.paidDate) map[p.period].collected += p.amount;
-  }
-  return periods.map((period) => ({
-    period,
-    label: periodLabelShort(period),
-    isCurrent: period === CUR_PERIOD,
-    ...map[period],
-  }));
+export function daysUntil(iso) {
+  return Math.round((parseISO(iso) - TODAY) / 86400000);
 }
 
-// One row per lease for the tenants table. Ended leases stay listed as a record,
-// flagged so the table can badge them "Ended" rather than a current-month status.
-export function tenantRows(data) {
-  const ix = indexes(data);
-  const paymentsByLease = {};
-  for (const p of data.payments) (paymentsByLease[p.leaseId] ||= []).push(p);
-
-  return data.leases
-    .filter((l) => l.status === "active")
-    .map((lease) => {
-      const tenant = ix.tenants[lease.tenantId];
-      const unit = ix.units[lease.unitId];
-      const property = ix.properties[unit.propertyId];
-      const pays = paymentsByLease[lease.id] || [];
-      const ended = leaseEnded(lease);
-      const { status, currentPaymentId } = ended
-        ? { status: "ended", currentPaymentId: undefined }
-        : monthStatusFromPays(pays);
-      const balance = pays.filter((p) => !p.paidDate).reduce((s, p) => s + p.amount, 0);
+// One row per unit with its current contract/tenant/status.
+export function unitRows(s, towerId = null) {
+  const ix = indexAll(s);
+  const active = activeContracts(s);
+  return s.units
+    .filter((u) => !towerId || u.towerId === towerId)
+    .map((unit) => {
+      const contract = active.find((c) => c.unitId === unit.id);
+      const tenant = contract ? ix.contacts[contract.tenantId] : null;
       return {
-        leaseId: lease.id,
-        tenant,
         unit,
-        property,
-        rent: lease.rent,
-        dueDay: lease.dueDay,
-        ended,
-        status,
-        currentPaymentId,
-        balance,
+        tower: ix.towers[unit.towerId],
+        vacant: !contract,
+        contract,
+        tenant,
+        status: contract ? (contract.status === "expiring" ? "expiring" : "leased") : "vacant",
       };
     });
 }
 
-// Payment ledger rows joined with tenant/unit, newest first within a period.
-export function paymentRows(data, { period = CUR_PERIOD } = {}) {
-  const ix = indexes(data);
-  return data.payments
-    .filter((p) => p.period === period)
-    .map((p) => {
-      const lease = ix.leases[p.leaseId];
-      const tenant = ix.tenants[lease.tenantId];
-      const unit = ix.units[lease.unitId];
-      const property = ix.properties[unit.propertyId];
-      return { ...p, status: paymentStatus(p), tenant, unit, property };
-    })
-    .sort((a, b) => {
-      const order = { overdue: 0, due: 1, paid: 2 };
-      return order[a.status] - order[b.status] || a.dueDate.localeCompare(b.dueDate);
-    });
+export function occupancy(s) {
+  const occupiedUnits = new Set(activeContracts(s).map((c) => c.unitId));
+  const total = s.units.length;
+  const occ = occupiedUnits.size;
+  return { total, occupied: occ, vacant: total - occ, pct: total ? Math.round((occ / total) * 100) : 0 };
 }
 
-export function availablePeriods(data, n = 6) {
-  return Array.from({ length: n }, (_, i) => addMonthsKey(CUR_PERIOD, -(n - 1 - i))).reverse();
+// ---- cheques ----------------------------------------------------------------
+export function chequeDueSoon(cheque, withinDays = 7) {
+  if (cheque.status !== "pending") return false;
+  const d = daysUntil(cheque.dueDate);
+  return d >= 0 && d <= withinDays;
 }
 
-// Per-property rollup for the properties grid.
-export function propertyRows(data) {
-  const active = activeLeases(data);
-  // Map unitId -> lease. Built explicitly (not via byId) so the lease keeps its
-  // own id, which the current-month payment lookup below relies on.
-  const leaseByUnit = {};
-  for (const l of active) leaseByUnit[l.unitId] = l;
+export function chequeOverdue(cheque) {
+  return cheque.status === "pending" && daysUntil(cheque.dueDate) < 0;
+}
 
-  return data.properties.map((property) => {
-    const units = data.units.filter((u) => u.propertyId === property.id);
-    const occupied = units.filter((u) => leaseByUnit[u.id]);
-    const monthlyRevenue = occupied.reduce((s, u) => s + leaseByUnit[u.id].rent, 0);
+// ---- money / collections ----------------------------------------------------
+export function moneyInPeriod(s, period = CUR_PERIOD) {
+  return s.receipts.filter((r) => r.date.slice(0, 7) === period).reduce((a, r) => a + r.amount, 0);
+}
 
-    // `expected` / `dueCount` reflect only the cheques whose period is the current
-    // month, so a quarterly (4-cheque) lease counts its full cheque in a due month
-    // and nothing in the months between, rather than a divided monthly average.
-    let collected = 0;
-    let expected = 0;
-    let overdue = 0;
-    let dueCount = 0;
-    for (const u of occupied) {
-      const lease = leaseByUnit[u.id];
-      const cur = data.payments.find((p) => p.leaseId === lease.id && p.period === CUR_PERIOD);
-      if (!cur) continue;
-      expected += cur.amount;
-      dueCount += 1;
-      const st = paymentStatus(cur);
-      if (st === "paid") collected += cur.amount;
-      if (st === "overdue") overdue += 1;
-    }
+export function expectedInPeriod(s, period = CUR_PERIOD) {
+  return s.cheques.filter((c) => c.kind === "in" && c.dueDate.slice(0, 7) === period).reduce((a, c) => a + c.amount, 0);
+}
+
+export function collectionsByMonth(s, n = 6, towerId = null) {
+  const periods = Array.from({ length: n }, (_, i) => addMonthsKey(CUR_PERIOD, -(n - 1 - i)));
+  const map = Object.fromEntries(periods.map((p) => [p, { expected: 0, collected: 0 }]));
+  for (const c of s.cheques) {
+    if (c.kind !== "in") continue;
+    if (towerId && c.towerId !== towerId) continue;
+    const p = c.dueDate.slice(0, 7);
+    if (map[p]) map[p].expected += c.amount;
+  }
+  for (const r of s.receipts) {
+    if (towerId && r.towerId !== towerId) continue;
+    const p = r.date.slice(0, 7);
+    if (map[p]) map[p].collected += r.amount;
+  }
+  return periods.map((period) => ({
+    period, label: periodLabelShort(period), isCurrent: period === CUR_PERIOD, ...map[period],
+  }));
+}
+
+// Per-tower Profit & Loss (cash basis: receipts in, vouchers out).
+export function towerFinancials(s) {
+  const base = byId(s.towers);
+  const rows = {};
+  for (const t of s.towers) rows[t.id] = { tower: t, income: 0, expense: 0, byCategory: {} };
+  for (const r of s.receipts) if (rows[r.towerId]) rows[r.towerId].income += r.amount;
+  for (const v of s.vouchers) {
+    const row = rows[v.towerId];
+    if (!row) continue;
+    row.expense += v.amount;
+    row.byCategory[v.category] = (row.byCategory[v.category] || 0) + v.amount;
+  }
+  return Object.values(rows).map((r) => ({ ...r, net: r.income - r.expense, _tower: base[r.tower.id] }));
+}
+
+export function consolidatedPnl(s) {
+  const income = s.receipts.reduce((a, r) => a + r.amount, 0);
+  const expense = s.vouchers.reduce((a, v) => a + v.amount, 0);
+  return { income, expense, net: income - expense };
+}
+
+// ---- dashboard summary ------------------------------------------------------
+export function dashboardSummary(s) {
+  const leadDays = s.settings?.renewalLeadDays ?? 60;
+  const chequeDays = s.settings?.chequeAlertDays ?? 7;
+  const occ = occupancy(s);
+  const expected = expectedInPeriod(s);
+  const collected = moneyInPeriod(s);
+  const expiring = s.contracts.filter((c) => isExpiringSoon(c, leadDays));
+  const chequesDue = s.cheques.filter((c) => chequeDueSoon(c, chequeDays));
+  const chequesBounced = s.cheques.filter((c) => c.status === "bounced");
+  const openMaintenance = s.maintenance.filter((m) => !["resolved", "closed"].includes(m.status));
+  const pnl = consolidatedPnl(s);
+  return {
+    occupancy: occ,
+    expectedThisMonth: expected,
+    collectedThisMonth: collected,
+    collectedPct: expected ? Math.round((collected / expected) * 100) : 0,
+    activeContracts: activeContracts(s).length,
+    expiringCount: expiring.length,
+    chequesDueCount: chequesDue.length,
+    chequesDueAmount: chequesDue.reduce((a, c) => a + c.amount, 0),
+    bouncedCount: chequesBounced.length,
+    openMaintenance: openMaintenance.length,
+    monthlyRevenue: Math.round(activeContracts(s).reduce((a, c) => a + c.annualRent, 0) / 12),
+    netPnl: pnl.net,
+  };
+}
+
+// ---- contracts --------------------------------------------------------------
+export function chequesOfContract(s, contractId) {
+  return s.cheques.filter((c) => c.contractId === contractId).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
+export function contractRows(s) {
+  const ix = indexAll(s);
+  return s.contracts.map((c) => {
+    const cheques = s.cheques.filter((x) => x.contractId === c.id);
+    const collected = cheques.filter((x) => x.status === "cleared").reduce((a, x) => a + x.amount, 0);
+    const outstanding = cheques.filter((x) => !["cleared", "replaced"].includes(x.status)).reduce((a, x) => a + x.amount, 0);
     return {
-      property,
-      unitCount: units.length,
-      occupied: occupied.length,
-      vacant: units.length - occupied.length,
-      occupancyPct: units.length ? Math.round((occupied.length / units.length) * 100) : 0,
-      monthlyRevenue,
-      annualRent: monthlyRevenue * 12,
-      dueThisMonth: expected,
-      dueCount,
-      collected,
-      expected,
-      collectedPct: expected ? Math.round((collected / expected) * 100) : 0,
-      overdue,
+      contract: c, tenant: ix.contacts[c.tenantId], unit: ix.units[c.unitId], tower: ix.towers[c.towerId],
+      cheques, collected, outstanding,
     };
   });
 }
 
-// Units of one property with their lease/tenant/status (for property detail).
-export function unitRows(data, propertyId) {
-  const ix = indexes(data);
-  const active = activeLeases(data);
-  return data.units
-    .filter((u) => u.propertyId === propertyId)
-    .map((unit) => {
-      const lease = active.find((l) => l.unitId === unit.id);
-      if (!lease) return { unit, vacant: true, status: "vacant" };
-      const tenant = ix.tenants[lease.tenantId];
-      const pays = data.payments.filter((p) => p.leaseId === lease.id);
-      const { status, currentPaymentId } = monthStatusFromPays(pays);
-      return { unit, vacant: false, tenant, lease, status, currentPaymentId };
-    });
+// ---- accounting / P&L -------------------------------------------------------
+// Cash-basis P&L over an optional date range: income from receipts (by what it
+// was for), expenses from payment vouchers (by category), split per tower.
+export function accountingPnl(s, { from = null, to = null, towerId = null } = {}) {
+  const inRange = (iso) => (!from || iso >= from) && (!to || iso <= to);
+  const matchTower = (tid) => !towerId || tid === towerId;
+  const incomeByCat = {};
+  const expenseByCat = {};
+  let income = 0;
+  let expense = 0;
+  const towers = {};
+  for (const t of s.towers) if (matchTower(t.id)) towers[t.id] = { tower: t, income: 0, expense: 0 };
+
+  for (const r of s.receipts) {
+    if (!inRange(r.date) || !matchTower(r.towerId)) continue;
+    income += r.amount;
+    const k = r.against || "other";
+    incomeByCat[k] = (incomeByCat[k] || 0) + r.amount;
+    if (towers[r.towerId]) towers[r.towerId].income += r.amount;
+  }
+  for (const v of s.vouchers) {
+    if (!inRange(v.date) || !matchTower(v.towerId)) continue;
+    expense += v.amount;
+    expenseByCat[v.category] = (expenseByCat[v.category] || 0) + v.amount;
+    if (towers[v.towerId]) towers[v.towerId].expense += v.amount;
+  }
+  const towerRows = Object.values(towers)
+    .map((t) => ({ ...t, net: t.income - t.expense, margin: t.income ? Math.round(((t.income - t.expense) / t.income) * 100) : 0 }))
+    .sort((a, b) => b.net - a.net);
+
+  // Accrual context: money still owed to/by the company (or one tower).
+  const receivable = s.cheques.filter((c) => c.kind === "in" && c.status === "pending" && matchTower(c.towerId)).reduce((a, c) => a + c.amount, 0);
+  const payable = s.bills.filter((b) => b.status !== "paid" && matchTower(b.towerId)).reduce((a, b) => a + b.amount, 0);
+
+  return { income, expense, net: income - expense, incomeByCat, expenseByCat, towerRows, receivable, payable };
 }
+
+export const monthKeyOf = (iso) => monthKey(parseISO(iso));

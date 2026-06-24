@@ -58,6 +58,8 @@
   --z-sticky: 200;
   --z-backdrop: 300;
   --z-drawer: 310;
+  --z-modal-backdrop: 320;
+  --z-modal: 330;
   --z-toast: 400;
   --z-tooltip: 500;
 
@@ -203,6 +205,26 @@ button {
 .btn-ghost:hover {
   background: var(--surface-2);
 }
+/* Outline danger: destructive triggers (Delete buttons). */
+.btn-danger {
+  --_bg: transparent;
+  --_fg: var(--danger-ink);
+  --_bd: var(--danger-line);
+}
+.btn-danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger-ink);
+}
+/* Solid danger: the confirm step that actually destroys. */
+.btn-danger-solid {
+  --_bg: var(--danger-ink);
+  --_fg: #fff;
+  --_bd: transparent;
+  box-shadow: var(--shadow-sm);
+}
+.btn-danger-solid:hover {
+  filter: brightness(0.93);
+}
 .btn-sm {
   height: 30px;
   padding: 0 10px;
@@ -330,6 +352,20 @@ button {
   border-radius: var(--r);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   width: 100%;
+}
+/* Native selects draw their own arrow on the right; with the default 12px
+   padding (and any left-side filter icon) the selected text collides with it.
+   Suppress the native arrow, draw a consistent caret, and reserve room so the
+   value never overlaps it. */
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a39d94' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
 }
 .input::placeholder {
   color: var(--faint);

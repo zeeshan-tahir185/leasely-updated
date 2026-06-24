@@ -26,9 +26,11 @@ export default function CollectionsChart({ data }) {
           ))}
         </div>
         <div className="chart-plot">
-          {ticks.map((t) => (
-            <div key={t.f} className="gridline" style={{ bottom: `${t.f * 100}%` }} />
-          ))}
+          <div className="gridlines">
+            {ticks.map((t) => (
+              <div key={t.f} className="gridline" style={{ bottom: `${t.f * 100}%` }} />
+            ))}
+          </div>
           <div className="bars">
             {data.map((d, i) => {
               const pct = d.expected ? Math.round((d.collected / d.expected) * 100) : 0;
