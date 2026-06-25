@@ -146,6 +146,28 @@ function AddCaseDrawer({ open, onClose, s }) {
   const [error, setError] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Buildings the chosen party actually holds units in (from their contracts).
+  // null = no contracts found (e.g. a supplier or former tenant) → don't restrict.
+  const tenantTowerIds = useMemo(() => {
+    if (!form.contactId) return null;
+    const ids = new Set(s.contracts.filter((ct) => ct.tenantId === form.contactId).map((ct) => ct.towerId));
+    return ids.size ? ids : null;
+  }, [form.contactId, s.contracts]);
+  const towerOptions = (tenantTowerIds ? s.towers.filter((t) => tenantTowerIds.has(t.id)) : s.towers)
+    .map((t) => ({ value: t.id, label: t.name }));
+
+  // Choosing a party keeps the building in sync: auto-pick when they have exactly
+  // one building, and clear a building that isn't theirs.
+  function chooseParty(contactId) {
+    const ids = new Set(s.contracts.filter((ct) => ct.tenantId === contactId).map((ct) => ct.towerId));
+    setForm((f) => {
+      let towerId = f.towerId;
+      if (ids.size === 1) towerId = [...ids][0];
+      else if (ids.size && !ids.has(towerId)) towerId = "";
+      return { ...f, contactId, towerId };
+    });
+  }
+
   function submit(e) {
     e.preventDefault();
     if (!form.type) return setError("Choose a case type.");
@@ -175,11 +197,13 @@ function AddCaseDrawer({ open, onClose, s }) {
         <label className="field full"><span>Title</span>
           <input className="input" value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Bounced cheque — tenant name" /></label>
         <label className="field"><span>Party (optional)</span>
-          <SearchSelect value={form.contactId} onChange={(v) => set("contactId", v)}
+          <SearchSelect value={form.contactId} onChange={chooseParty}
             options={s.contacts.map((c) => ({ value: c.id, label: c.name, sub: c.phone }))} placeholder="Select…" />
         </label>
         <label className="field"><span>Tower (optional)</span>
-          <SearchSelect value={form.towerId} onChange={(v) => set("towerId", v)} options={s.towers.map((t) => ({ value: t.id, label: t.name }))} placeholder="Select…" />
+          <SearchSelect value={form.towerId} onChange={(v) => set("towerId", v)} options={towerOptions}
+            placeholder={tenantTowerIds ? "This tenant's building…" : "Select…"} />
+          {tenantTowerIds && <small style={{ fontSize: "0.75rem", color: "var(--muted)" }}>Showing only buildings this tenant has units in.</small>}
         </label>
         {error && <p className="form-error full">{error}</p>}
       </form>
