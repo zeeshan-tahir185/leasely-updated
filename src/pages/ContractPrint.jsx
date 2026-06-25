@@ -21,6 +21,15 @@ export default function ContractPrint() {
   const tower = ix.towers[c.towerId];
   const unit = ix.units[c.unitId];
   const cheques = chequesOfContract(s, id);
+  // Active cheques only: drop superseded (replaced) rows so the schedule and its
+  // totals stay correct after a bounce-and-replace, instead of double-counting.
+  const scheduleCheques = cheques.filter((ch) => ch.status !== "replaced");
+  // Total rent over the whole term = what the tenant actually pays by cheque
+  // (falls back to the annual rent if no schedule has been generated yet).
+  const termRent = scheduleCheques.length
+    ? scheduleCheques.reduce((a, ch) => a + ch.amount, 0)
+    : c.annualRent;
+  const totalPayable = termRent + (c.deposit || 0) + (c.commission || 0);
   const clauses = c.clauses && c.clauses.length ? c.clauses : DEFAULT_CONTRACT_CLAUSES;
 
   return (
@@ -78,7 +87,8 @@ export default function ContractPrint() {
             <Field k="Start date" v={fmtDateLong(c.startDate)} />
             <Field k="End date" v={fmtDateLong(c.endDate)} />
             <Field k="Contract type" v={`${c.type} tenancy`} />
-            <Field k="Total contract value" v={fmtMoney(c.annualRent * Math.max(1, cheques.length / c.installments))} />
+            <Field k="Total rent (over term)" v={fmtMoney(termRent)} />
+            <Field k="Total payable (rent + deposit + commission)" v={fmtMoney(totalPayable)} />
           </div>
         </section>
 
@@ -89,7 +99,7 @@ export default function ContractPrint() {
               <tr><th>#</th><th>Due date</th><th>Bank</th><th>Cheque no.</th><th className="r">Amount</th></tr>
             </thead>
             <tbody>
-              {cheques.map((ch, i) => (
+              {scheduleCheques.map((ch, i) => (
                 <tr key={ch.id}>
                   <td>{i + 1}</td>
                   <td>{fmtDateLong(ch.dueDate)}</td>
@@ -100,7 +110,7 @@ export default function ContractPrint() {
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan={4} className="r">Total</td><td className="r tnum">{fmtMoney(cheques.reduce((a, x) => a + x.amount, 0))}</td></tr>
+              <tr><td colSpan={4} className="r">Total</td><td className="r tnum">{fmtMoney(scheduleCheques.reduce((a, x) => a + x.amount, 0))}</td></tr>
             </tfoot>
           </table>
         </section>
