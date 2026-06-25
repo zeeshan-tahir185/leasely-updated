@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Env — never commit real keys (anon key is public-safe but URL/keys stay local)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
