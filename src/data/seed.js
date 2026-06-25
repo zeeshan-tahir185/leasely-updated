@@ -149,9 +149,12 @@ export function buildSeed() {
       status,
     });
 
-    // Generate the installment cheques across the term.
+    // Generate the installment cheques across the term. Split so they sum to the
+    // annual rent EXACTLY (leftover dirhams spread +1 across the first cheques).
     const monthsPer = Math.max(1, Math.round(12 / installments));
-    const perCheque = Math.round(annualRent / installments);
+    const base = Math.floor(annualRent / installments);
+    const remainder = annualRent - base * installments;
+    const amountFor = (k) => base + (k % installments < remainder ? 1 : 0);
     const banks = ["Emirates NBD", "ADCB", "Mashreq", "FAB", "DIB"];
     for (let m = 0, k = 0; m < termMonths; m += monthsPer, k++) {
       const dueIso = monthsFrom(startMo + m, 1); // cheques track the contract start day (the 1st)
@@ -171,7 +174,7 @@ export function buildSeed() {
         kind: "in",
         contractId: cid,
         contactId: tenantId,
-        amount: perCheque,
+        amount: amountFor(k),
         dueDate: dueIso,
         bankName: banks[(contractSeq + k) % banks.length],
         chequeNo: String(100000 + (chequeSeq += 7)),
@@ -186,7 +189,7 @@ export function buildSeed() {
           towerId,
           date: clearedDate,
           contactId: tenantId,
-          amount: perCheque,
+          amount: amountFor(k),
           method: "cheque",
           chequeId: chId,
           against: "rent",

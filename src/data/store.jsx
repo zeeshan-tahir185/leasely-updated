@@ -135,7 +135,13 @@ export function DataProvider({ children }) {
     const termMonths = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
     const n = Math.max(1, Number(installments) || 1);
     const monthsPer = Math.max(1, Math.round(12 / n));
-    const perCheque = Math.round(Number(annualRent) / n);
+    // Split the annual rent so the cheques sum to it EXACTLY (legal accuracy):
+    // each cheque is the floor, and the leftover dirhams are spread +1 across the
+    // first few cheques of each year. e.g. 92,000/12 → 8×7,667 + 4×7,666 = 92,000.
+    const rent = Math.round(Number(annualRent));
+    const base = Math.floor(rent / n);
+    const remainder = rent - base * n;
+    const amountFor = (k) => base + (k % n < remainder ? 1 : 0);
     const banks = ["Emirates NBD", "ADCB", "Mashreq", "FAB", "DIB"];
     const out = [];
     for (let m = 0, k = 0; m < termMonths; m += monthsPer, k++) {
@@ -145,7 +151,7 @@ export function DataProvider({ children }) {
       const dt = new Date(start.getFullYear(), start.getMonth() + m, Math.min(start.getDate(), lastDay));
       out.push({
         id: newId("chq"), companyId: d.activeCompanyId, towerId, kind: "in", contractId: cid,
-        contactId: tenantId, amount: perCheque, dueDate: isoOf(dt),
+        contactId: tenantId, amount: amountFor(k), dueDate: isoOf(dt),
         bankName: banks[k % banks.length], chequeNo: String(100000 + Math.floor(Math.random() * 899999)),
         status: "pending", isNew: true,
       });
