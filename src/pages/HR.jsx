@@ -9,10 +9,11 @@ import Drawer from "../components/Drawer";
 import StatusBadge from "../components/StatusBadge";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
+import NewFlag from "../components/NewFlag";
 import { useConfirm } from "../components/ConfirmDialog";
 
 export default function HR() {
-  const { db, companyId, runPayroll } = useData();
+  const { db, companyId, runPayroll, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const confirm = useConfirm();
   const [view, setView] = useState("team");
@@ -102,11 +103,11 @@ export default function HR() {
             </thead>
             <tbody>
               {filteredEmps.map((e) => (
-                <tr key={e.id} className="row-click" onClick={() => setOpenEmp(e.id)}>
+                <tr key={e.id} className={`row-click ${e.isNew ? "row-new" : ""}`} onClick={() => { markSeen("employees", e.id); setOpenEmp(e.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="avatar avatar-sm">{initials(e.name)}</span>
-                      <div><div className="tn-name">{e.name}</div><div className="tn-sub">{e.title}</div></div>
+                      <div><div className="tn-name">{e.name}<NewFlag show={e.isNew} /></div><div className="tn-sub">{e.title}</div></div>
                     </div>
                   </td>
                   <td className="t-muted">{e.department || "—"}</td>
@@ -127,8 +128,8 @@ export default function HR() {
             </thead>
             <tbody>
               {periods.map((p) => (
-                <tr key={p.period} className="row-click" onClick={() => setOpenPeriod(p.period)}>
-                  <td style={{ fontWeight: 600 }}>{periodLabelLong(p.period)}</td>
+                <tr key={p.period} className={`row-click ${p.lines.some((l) => l.isNew) ? "row-new" : ""}`} onClick={() => { p.lines.forEach((l) => l.isNew && markSeen("payroll", l.id)); setOpenPeriod(p.period); }}>
+                  <td style={{ fontWeight: 600 }}>{periodLabelLong(p.period)}<NewFlag show={p.lines.some((l) => l.isNew)} /></td>
                   <td className="num tnum">{p.lines.length}</td>
                   <td className="num"><Money value={p.gross} /></td>
                   <td className="num"><Money value={p.net} /></td>

@@ -14,6 +14,7 @@ import StatCard from "../components/StatCard";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
+import NewFlag from "../components/NewFlag";
 
 const TYPE_ICON = { legal: Scale, police: Siren };
 const typeIcon = (t) => TYPE_ICON[t] || Scale;
@@ -34,7 +35,7 @@ const NEXT = {
 const ACTION = { in_court: "Take to court", won: "Mark won", lost: "Mark lost", closed: "Close case", open: "Reopen" };
 
 export default function Cases() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -111,11 +112,11 @@ export default function Cases() {
             {filtered.map(({ c, party, tower }) => {
               const Icon = typeIcon(c.type);
               return (
-                <tr key={c.id} className={`row-click ${c.status === "in_court" ? "row-overdue" : ""}`} onClick={() => setOpenId(c.id)}>
+                <tr key={c.id} className={`row-click ${c.status === "in_court" ? "row-overdue" : ""} ${c.isNew ? "row-new" : ""}`} onClick={() => { markSeen("cases", c.id); setOpenId(c.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
-                      <div><div className="tn-name">{c.title}</div><div className="tn-sub">{c.refNo || "—"}</div></div>
+                      <div><div className="tn-name">{c.title}<NewFlag show={c.isNew} /></div><div className="tn-sub">{c.refNo || "—"}</div></div>
                     </div>
                   </td>
                   <td>{party?.name || "—"}</td>

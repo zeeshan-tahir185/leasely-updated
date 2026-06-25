@@ -43,8 +43,10 @@ export function DataProvider({ children }) {
   }, [db]);
 
   // ---- generic collection CRUD ----------------------------------------------
+  // Every freshly-added record is flagged isNew so lists can star + highlight it
+  // until it's opened. A caller can pass isNew:false to opt out.
   const add = useCallback((entity, record) => {
-    const row = { id: record.id || newId(entity.slice(0, 2)), ...record };
+    const row = { id: record.id || newId(entity.slice(0, 2)), isNew: true, createdTs: Date.now(), ...record };
     setDb((d) => ({ ...d, [entity]: [...(d[entity] || []), row] }));
     return row.id;
   }, []);
@@ -58,6 +60,14 @@ export function DataProvider({ children }) {
 
   const remove = useCallback((entity, id) => {
     setDb((d) => ({ ...d, [entity]: d[entity].filter((r) => r.id !== id) }));
+  }, []);
+
+  // Clear the "new" highlight once a record has been opened/seen.
+  const markSeen = useCallback((entity, id) => {
+    setDb((d) => ({
+      ...d,
+      [entity]: (d[entity] || []).map((r) => (r.id === id && r.isNew ? { ...r, isNew: false } : r)),
+    }));
   }, []);
 
   // ---- context switches ------------------------------------------------------
@@ -109,7 +119,7 @@ export function DataProvider({ children }) {
       const replacement = {
         ...old, id: newId("chq"), status: "pending", clearedDate: undefined,
         dueDate: dueDate || old.dueDate, chequeNo: chequeNo || old.chequeNo,
-        bankName: bankName || old.bankName, replacesId: chequeId,
+        bankName: bankName || old.bankName, replacesId: chequeId, isNew: true,
       };
       const cheques = d.cheques.map((c) => (c.id === chequeId ? { ...c, status: "replaced", replacedById: replacement.id } : c));
       return { ...d, cheques: [...cheques, replacement] };
@@ -132,7 +142,7 @@ export function DataProvider({ children }) {
         id: newId("chq"), companyId: d.activeCompanyId, towerId, kind: "in", contractId: cid,
         contactId: tenantId, amount: perCheque, dueDate: isoOf(dt),
         bankName: banks[k % banks.length], chequeNo: String(100000 + Math.floor(Math.random() * 899999)),
-        status: "pending",
+        status: "pending", isNew: true,
       });
     }
     return out;
@@ -147,7 +157,7 @@ export function DataProvider({ children }) {
         type: input.type || "Residential", annualRent: Number(input.annualRent),
         installments: Math.max(1, Number(input.installments) || 1), startDate: input.startDate,
         endDate: input.endDate, deposit: Number(input.deposit) || 0, commission: Number(input.commission) || 0,
-        status: "active",
+        status: "active", isNew: true,
       };
       const cheques = chequesForContract(d, cid, contract);
       return { ...d, contracts: [...d.contracts, contract], cheques: [...d.cheques, ...cheques] };
@@ -213,7 +223,7 @@ export function DataProvider({ children }) {
         const voucher = {
           id: newId("pv"), companyId: bill.companyId, towerId: bill.towerId, date: todayISO(),
           payeeId: bill.supplierId, amount: bill.amount, category: bill.category,
-          method, ref: bill.billNo, voucherNo: `PV-${Math.floor(9000 + Math.random() * 900)}`, billId: id,
+          method, ref: bill.billNo, voucherNo: `PV-${Math.floor(9000 + Math.random() * 900)}`, billId: id, isNew: true,
         };
         return {
           ...d,
@@ -247,7 +257,7 @@ export function DataProvider({ children }) {
       const value = Number(reading);
       const units = Math.max(0, value - (meter.lastReading || 0));
       const amount = Math.round(units * (meter.rate || 0));
-      const rd = { id: newId("rd"), meterId, date: date || todayISO(), reading: value, units, amount, collected: false };
+      const rd = { id: newId("rd"), meterId, date: date || todayISO(), reading: value, units, amount, collected: false, isNew: true };
       return {
         ...d,
         readings: [...d.readings, rd],
@@ -276,7 +286,7 @@ export function DataProvider({ children }) {
         .map((e) => {
           const allowances = Math.round(e.salary * 0.15);
           const deductions = Math.round(e.salary * 0.05);
-          return { id: newId("pr"), companyId: cid, employeeId: e.id, period, basic: e.salary, allowances, deductions, net: e.salary + allowances - deductions, status: "pending" };
+          return { id: newId("pr"), companyId: cid, employeeId: e.id, period, basic: e.salary, allowances, deductions, net: e.salary + allowances - deductions, status: "pending", isNew: true };
         });
       return additions.length ? { ...d, payroll: [...d.payroll, ...additions] } : d;
     });
@@ -302,10 +312,10 @@ export function DataProvider({ children }) {
   const resetDemo = useCallback(() => setDb(buildSeed()), []);
 
   const actions = useMemo(() => ({
-    add, update, remove, setActiveCompany, setCurrentUser, updateSettings,
+    add, update, remove, markSeen, setActiveCompany, setCurrentUser, updateSettings,
     setChequeStatus, replaceCheque, createContract, renewContract, deleteContract, deleteCheque,
     setBillPaid, deleteBill, recordReading, deleteMeter, runPayroll, setPayrollPaid, deleteEmployee, resetDemo,
-  }), [add, update, remove, setActiveCompany, setCurrentUser, updateSettings, setChequeStatus, replaceCheque, createContract, renewContract, deleteContract, deleteCheque, setBillPaid, deleteBill, recordReading, deleteMeter, runPayroll, setPayrollPaid, deleteEmployee, resetDemo]);
+  }), [add, update, remove, markSeen, setActiveCompany, setCurrentUser, updateSettings, setChequeStatus, replaceCheque, createContract, renewContract, deleteContract, deleteCheque, setBillPaid, deleteBill, recordReading, deleteMeter, runPayroll, setPayrollPaid, deleteEmployee, resetDemo]);
 
   const value = useMemo(() => {
     const company = db.companies.find((c) => c.id === db.activeCompanyId) || db.companies[0];

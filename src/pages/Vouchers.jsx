@@ -9,6 +9,7 @@ import Drawer from "../components/Drawer";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
+import NewFlag from "../components/NewFlag";
 
 const CAT_LABEL = {
   maintenance: "Maintenance", cleaning: "Cleaning", utility: "Utilities", salary: "Salaries",
@@ -19,7 +20,7 @@ const METHODS = ["cash", "cheque", "bank", "card"];
 const METHOD_LABEL = { cash: "Cash", cheque: "Cheque", bank: "Bank transfer", card: "Card" };
 
 export default function Vouchers() {
-  const { db, companyId, add } = useData();
+  const { db, companyId, add, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -67,8 +68,8 @@ export default function Vouchers() {
           <thead><tr><th>Voucher</th><th>Date</th><th>Pay to</th><th>Category</th><th>Tower</th><th>Method</th><th className="num">Amount</th></tr></thead>
           <tbody>
             {filtered.map(({ v, payee, tower }) => (
-              <tr key={v.id} className="row-click" onClick={() => setOpenId(v.id)}>
-                <td style={{ fontWeight: 600 }}>{v.voucherNo}</td>
+              <tr key={v.id} className={`row-click ${v.isNew ? "row-new" : ""}`} onClick={() => { markSeen("vouchers", v.id); setOpenId(v.id); }}>
+                <td style={{ fontWeight: 600 }}>{v.voucherNo}<NewFlag show={v.isNew} /></td>
                 <td className="t-muted" style={{ whiteSpace: "nowrap" }}>{fmtDateLong(v.date)}</td>
                 <td>{payee?.name || "—"}</td>
                 <td><span className="badge badge-neutral">{CAT_LABEL[v.category] || v.category}</span></td>

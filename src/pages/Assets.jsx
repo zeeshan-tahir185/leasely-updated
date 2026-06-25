@@ -14,6 +14,7 @@ import StatusBadge from "../components/StatusBadge";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
+import NewFlag from "../components/NewFlag";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
 
@@ -38,7 +39,7 @@ function depreciation(a) {
 }
 
 export default function Assets() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -107,12 +108,12 @@ export default function Assets() {
             {filtered.map(({ a, tower, dep }) => {
               const Icon = catIcon(a.category);
               return (
-                <tr key={a.id} className="row-click" onClick={() => setOpenId(a.id)}>
+                <tr key={a.id} className={`row-click ${a.isNew ? "row-new" : ""}`} onClick={() => { markSeen("assets", a.id); setOpenId(a.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
                       <div>
-                        <div className="tn-name">{a.name}</div>
+                        <div className="tn-name">{a.name}<NewFlag show={a.isNew} /></div>
                         <div className="tn-sub">{a.category}</div>
                       </div>
                     </div>

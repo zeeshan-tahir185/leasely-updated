@@ -16,6 +16,7 @@ import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
+import NewFlag from "../components/NewFlag";
 
 // Map each category to a glyph so a request reads at a glance.
 const CAT_ICON = {
@@ -61,7 +62,7 @@ function PriorityChip({ priority }) {
 }
 
 export default function Maintenance() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -167,12 +168,12 @@ export default function Maintenance() {
               const age = ageDays(m.createdAt);
               const stale = isOpen(m.status) && age > STALE_DAYS;
               return (
-                <tr key={m.id} className="row-click" onClick={() => setOpenId(m.id)}>
+                <tr key={m.id} className={`row-click ${m.isNew ? "row-new" : ""}`} onClick={() => { markSeen("maintenance", m.id); setOpenId(m.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
                       <div>
-                        <div className="tn-name">{m.title}</div>
+                        <div className="tn-name">{m.title}<NewFlag show={m.isNew} /></div>
                         <div className="tn-sub">{m.category}</div>
                       </div>
                     </div>

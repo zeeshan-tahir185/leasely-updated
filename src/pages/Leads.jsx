@@ -7,6 +7,7 @@ import { fmtMoney, fmtDate, initials, todayISO } from "../lib/format";
 const LOST_REASONS = ["Budget too high", "Chose another property", "Location not suitable", "Went quiet / unresponsive", "Timing not right", "Other"];
 import PageHeader from "../components/PageHeader";
 import Drawer from "../components/Drawer";
+import NewFlag from "../components/NewFlag";
 import { useConfirm } from "../components/ConfirmDialog";
 
 const STAGES = [
@@ -25,7 +26,7 @@ function ago(iso) {
 }
 
 export default function Leads() {
-  const { db, companyId, add, update, remove } = useData();
+  const { db, companyId, add, update, remove, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [openId, setOpenId] = useState(null);
@@ -70,12 +71,12 @@ export default function Leads() {
               const c = ix.contacts[l.contactId];
               const st = stageDef(l.stage);
               return (
-                <tr key={l.id} className={`row-click ${l.stage === "lost" ? "row-muted" : ""}`} onClick={() => setOpenId(l.id)}>
+                <tr key={l.id} className={`row-click ${l.stage === "lost" ? "row-muted" : ""} ${l.isNew ? "row-new" : ""}`} onClick={() => { markSeen("leads", l.id); setOpenId(l.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="avatar avatar-sm">{initials(c?.name || "?")}</span>
                       <div>
-                        <div className="tn-name">{c?.name || "Unknown"}</div>
+                        <div className="tn-name">{c?.name || "Unknown"}<NewFlag show={l.isNew} /></div>
                         <div className="tn-sub">{c?.phone || ""}</div>
                       </div>
                     </div>

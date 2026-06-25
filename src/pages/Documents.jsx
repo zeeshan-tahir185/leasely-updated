@@ -13,6 +13,7 @@ import Drawer from "../components/Drawer";
 import StatCard from "../components/StatCard";
 import Dropzone from "../components/Dropzone";
 import Lightbox from "../components/Lightbox";
+import NewFlag from "../components/NewFlag";
 import { useConfirm } from "../components/ConfirmDialog";
 
 const TYPE_ICON = { pdf: FileText, doc: FileText, image: ImageIcon };
@@ -29,7 +30,7 @@ function gatherDocs(s, ix) {
   const out = [];
   for (const d of (s.documents || [])) {
     out.push({
-      key: `dms:${d.id}`, source: "dms", id: d.id,
+      key: `dms:${d.id}`, source: "dms", id: d.id, isNew: d.isNew,
       name: d.name, category: d.category || "Other", type: d.type || "pdf",
       dataUrl: d.dataUrl, sizeKb: d.sizeKb || 0, addedAt: addedIso(d.addedAt),
       linkedLabel: d.linkedType ? LINK_LABEL[d.linkedType] || d.linkedType : null, linkedTo: null,
@@ -55,7 +56,7 @@ function gatherDocs(s, ix) {
 }
 
 export default function Documents() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const allDocs = useMemo(() => gatherDocs(s, ix), [s]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -81,7 +82,7 @@ export default function Documents() {
 
   return (
     <div className="page">
-      <PageHeader title="DMS & Archive" subtitle={`${allDocs.length} document${allDocs.length === 1 ? "" : "s"} across every module`}
+      <PageHeader title="Documents" subtitle={`${allDocs.length} document${allDocs.length === 1 ? "" : "s"} across every module`}
         actions={<button className="btn btn-primary" onClick={() => setAddOpen(true)}><Plus /> Add document</button>} />
 
       <div className="kpi-grid kpi-4">
@@ -115,11 +116,11 @@ export default function Documents() {
             {filtered.map((d) => {
               const Icon = typeIcon(d.type);
               return (
-                <tr key={d.key} className="row-click" onClick={() => setOpenKey(d.key)}>
+                <tr key={d.key} className={`row-click ${d.isNew ? "row-new" : ""}`} onClick={() => { if (d.source === "dms" && d.isNew) markSeen("documents", d.id); setOpenKey(d.key); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
-                      <div className="tn-name">{d.name}</div>
+                      <div className="tn-name">{d.name}<NewFlag show={d.isNew} /></div>
                     </div>
                   </td>
                   <td><span className="chip">{d.category || "Other"}</span></td>

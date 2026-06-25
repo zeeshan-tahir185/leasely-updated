@@ -15,6 +15,7 @@ import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
+import NewFlag from "../components/NewFlag";
 
 const DIRS = [{ key: "all", label: "All" }, { key: "in", label: "Incoming" }, { key: "out", label: "Outgoing" }];
 const STATUSES = ["all", "pending", "deposited", "cleared", "bounced", "replaced"];
@@ -54,7 +55,7 @@ function periodPredicate(period, range) {
 }
 
 export default function Cheques() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -153,12 +154,12 @@ export default function Cheques() {
             {filtered.map(({ ch, party, tower, unit }) => {
               const overdue = chequeOverdue(ch);
               return (
-                <tr key={ch.id} className={`row-click ${overdue ? "row-overdue" : ""}`} onClick={() => setOpenId(ch.id)}>
+                <tr key={ch.id} className={`row-click ${overdue ? "row-overdue" : ""} ${ch.isNew ? "row-new" : ""}`} onClick={() => { markSeen("cheques", ch.id); setOpenId(ch.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className={`dir-ic ${ch.kind}`}>{ch.kind === "in" ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
                       <div>
-                        <div className="tn-name">#{ch.chequeNo}</div>
+                        <div className="tn-name">#{ch.chequeNo}<NewFlag show={ch.isNew} /></div>
                         <div className="tn-sub">{ch.kind === "in" ? "Incoming" : "Outgoing"}</div>
                       </div>
                     </div>

@@ -13,6 +13,7 @@ import Drawer from "../components/Drawer";
 import StatusBadge from "../components/StatusBadge";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
+import NewFlag from "../components/NewFlag";
 import { useConfirm } from "../components/ConfirmDialog";
 
 const CAT_ICON = {
@@ -33,7 +34,7 @@ function StockBadge({ state }) {
 }
 
 export default function Inventory() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const [view, setView] = useState("stock");
   const [query, setQuery] = useState("");
@@ -106,11 +107,11 @@ export default function Inventory() {
                 const Icon = catIcon(it.category);
                 const st = stockState(it);
                 return (
-                  <tr key={it.id} className={`row-click ${st === "out" ? "row-overdue" : ""}`} onClick={() => setOpenItem(it.id)}>
+                  <tr key={it.id} className={`row-click ${st === "out" ? "row-overdue" : ""} ${it.isNew ? "row-new" : ""}`} onClick={() => { markSeen("inventoryItems", it.id); setOpenItem(it.id); }}>
                     <td>
                       <div className="cell-tenant">
                         <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
-                        <div><div className="tn-name">{it.name}</div><div className="tn-sub">{it.sku}</div></div>
+                        <div><div className="tn-name">{it.name}<NewFlag show={it.isNew} /></div><div className="tn-sub">{it.sku}</div></div>
                       </div>
                     </td>
                     <td className="t-muted">{it.category}</td>
@@ -134,11 +135,11 @@ export default function Inventory() {
             </thead>
             <tbody>
               {filteredPos.map(({ p, supplier }) => (
-                <tr key={p.id} className="row-click" onClick={() => setOpenPo(p.id)}>
+                <tr key={p.id} className={`row-click ${p.isNew ? "row-new" : ""}`} onClick={() => { markSeen("purchaseOrders", p.id); setOpenPo(p.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><ClipboardList strokeWidth={1.8} /></span>
-                      <div className="tn-name">{p.ref || "—"}</div>
+                      <div className="tn-name">{p.ref || "—"}<NewFlag show={p.isNew} /></div>
                     </div>
                   </td>
                   <td>{supplier?.name || "—"}</td>

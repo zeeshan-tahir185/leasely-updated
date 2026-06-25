@@ -16,6 +16,7 @@ import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
+import NewFlag from "../components/NewFlag";
 
 const CAT_ICON = {
   maintenance: Wrench, cleaning: Sparkles, utility: Zap, security: Shield,
@@ -35,7 +36,7 @@ const STATUS_FILTERS = ["all", "unpaid", "overdue", "paid"];
 const RANK = { overdue: 0, unpaid: 1, paid: 2 };
 
 export default function Bills() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -118,12 +119,12 @@ export default function Bills() {
               const Icon = catIcon(bill.category);
               const overdueRow = st === "overdue";
               return (
-                <tr key={bill.id} className={`row-click ${overdueRow ? "row-overdue" : ""}`} onClick={() => setOpenId(bill.id)}>
+                <tr key={bill.id} className={`row-click ${overdueRow ? "row-overdue" : ""} ${bill.isNew ? "row-new" : ""}`} onClick={() => { markSeen("bills", bill.id); setOpenId(bill.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
                       <div>
-                        <div className="tn-name">{bill.billNo || "—"}</div>
+                        <div className="tn-name">{bill.billNo || "—"}<NewFlag show={bill.isNew} /></div>
                         <div className="tn-sub">{titleCase(bill.category)}</div>
                       </div>
                     </div>

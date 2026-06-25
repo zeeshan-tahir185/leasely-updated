@@ -16,6 +16,7 @@ import Dropzone from "../components/Dropzone";
 import Lightbox from "../components/Lightbox";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
+import NewFlag from "../components/NewFlag";
 import { fileToCompressedDataUrl } from "../lib/image";
 
 const FILTERS = [
@@ -27,7 +28,7 @@ const FILTERS = [
 ];
 
 export default function Contracts() {
-  const { db, companyId, update } = useData();
+  const { db, companyId, update, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const rows = useMemo(() => contractRows(s), [s]);
   const [query, setQuery] = useState("");
@@ -107,9 +108,9 @@ export default function Contracts() {
               const cleared = r.cheques.filter((c) => c.status === "cleared").length;
               const docCount = (r.contract.contractDoc ? 1 : 0) + (r.contract.chequeDocs?.length || 0);
               return (
-                <tr key={r.contract.id} className="row-click" onClick={() => setOpenId(r.contract.id)}>
+                <tr key={r.contract.id} className={`row-click ${r.contract.isNew ? "row-new" : ""}`} onClick={() => { markSeen("contracts", r.contract.id); setOpenId(r.contract.id); }}>
                   <td style={{ fontWeight: 600 }}>
-                    {r.contract.contractNo}
+                    {r.contract.contractNo}<NewFlag show={r.contract.isNew} />
                     {docCount > 0 && (
                       <span className="doc-chip" title={`${docCount} document${docCount === 1 ? "" : "s"} on file`}>
                         <Paperclip /> {docCount}

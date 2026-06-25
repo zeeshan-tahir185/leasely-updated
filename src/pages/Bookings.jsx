@@ -15,6 +15,7 @@ import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
+import NewFlag from "../components/NewFlag";
 
 const titleCase = (s) => String(s || "").replace(/\b\w/g, (c) => c.toUpperCase());
 const STATUS_FILTERS = ["all", "held", "confirmed", "converted", "cancelled"];
@@ -22,7 +23,7 @@ const RANK = { held: 0, confirmed: 1, converted: 2, cancelled: 3 };
 const isActive = (st) => st === "held" || st === "confirmed";
 
 export default function Bookings() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -95,12 +96,12 @@ export default function Bookings() {
               const dleft = daysUntil(b.expiresAt);
               const expired = isActive(b.status) && dleft < 0;
               return (
-                <tr key={b.id} className={`row-click ${expired ? "row-overdue" : ""}`} onClick={() => setOpenId(b.id)}>
+                <tr key={b.id} className={`row-click ${expired ? "row-overdue" : ""} ${b.isNew ? "row-new" : ""}`} onClick={() => { markSeen("bookings", b.id); setOpenId(b.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><CalendarCheck strokeWidth={1.8} /></span>
                       <div>
-                        <div className="tn-name">{tower?.name || "—"}</div>
+                        <div className="tn-name">{tower?.name || "—"}<NewFlag show={b.isNew} /></div>
                         <div className="tn-sub">Unit {unit?.label || "—"}</div>
                       </div>
                     </div>

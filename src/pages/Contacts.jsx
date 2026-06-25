@@ -8,6 +8,7 @@ import Drawer from "../components/Drawer";
 import StatusBadge from "../components/StatusBadge";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
+import NewFlag from "../components/NewFlag";
 
 const KINDS = [
   { key: "all", label: "All" },
@@ -20,7 +21,7 @@ const KINDS = [
 const KIND_LABEL = { tenant: "Tenant", owner: "Owner", supplier: "Supplier", lead: "Lead", buyer: "Buyer" };
 
 export default function Contacts() {
-  const { db, companyId, add } = useData();
+  const { db, companyId, add, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("all");
@@ -79,12 +80,12 @@ export default function Contacts() {
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr key={c.id} className="row-click" onClick={() => setOpenId(c.id)}>
+              <tr key={c.id} className={`row-click ${c.isNew ? "row-new" : ""}`} onClick={() => { markSeen("contacts", c.id); setOpenId(c.id); }}>
                 <td>
                   <div className="cell-tenant">
                     <span className="avatar avatar-sm">{initials(c.name)}</span>
                     <div>
-                      <div className="tn-name">{c.name}</div>
+                      <div className="tn-name">{c.name}<NewFlag show={c.isNew} /></div>
                       {c.company && <div className="tn-sub">{c.company}</div>}
                     </div>
                   </div>

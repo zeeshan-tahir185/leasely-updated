@@ -7,11 +7,12 @@ import { buildUnits, BULK_DEFAULTS } from "../lib/units";
 import PageHeader from "../components/PageHeader";
 import Drawer from "../components/Drawer";
 import BulkUnitFields from "../components/BulkUnitFields";
+import NewFlag from "../components/NewFlag";
 
 const TOWER_TYPES = ["Residential", "Commercial", "Mixed Use", "Retail"];
 
 export default function Towers() {
-  const { db, companyId, add } = useData();
+  const { db, companyId, add, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -33,11 +34,11 @@ export default function Towers() {
       />
       <div className="tower-grid">
         {rows.map(({ t, units, leased, vacant, occ }) => (
-          <Link to={`/towers/${t.id}`} key={t.id} className="card tower-card">
+          <Link to={`/towers/${t.id}`} key={t.id} className={`card tower-card ${t.isNew ? "is-new" : ""}`} onClick={() => markSeen("towers", t.id)}>
             <div className="tower-card-head">
               <span className="co-mark"><Building2 strokeWidth={2.1} /></span>
               <div style={{ minWidth: 0 }}>
-                <div className="tower-card-name">{t.name}</div>
+                <div className="tower-card-name">{t.name}<NewFlag show={t.isNew} /></div>
                 <div className="t-muted">{t.area} · {t.floors} floors · {t.type}</div>
               </div>
             </div>

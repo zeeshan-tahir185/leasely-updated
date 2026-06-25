@@ -14,6 +14,7 @@ import StatusBadge from "../components/StatusBadge";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
+import NewFlag from "../components/NewFlag";
 import { useConfirm } from "../components/ConfirmDialog";
 import SearchSelect from "../components/SearchSelect";
 
@@ -23,7 +24,7 @@ const titleCase = (s) => String(s || "").replace(/\b\w/g, (c) => c.toUpperCase()
 const STATUS_FILTERS = ["all", "due", "settled"];
 
 export default function Utilities() {
-  const { db, companyId } = useData();
+  const { db, companyId, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const [query, setQuery] = useState("");
@@ -106,12 +107,12 @@ export default function Utilities() {
             {filtered.map(({ m, tower, last, uncollected }) => {
               const Icon = typeIcon(m.type);
               return (
-                <tr key={m.id} className={`row-click ${uncollected > 0 ? "row-overdue" : ""}`} onClick={() => setOpenId(m.id)}>
+                <tr key={m.id} className={`row-click ${uncollected > 0 ? "row-overdue" : ""} ${m.isNew ? "row-new" : ""}`} onClick={() => { markSeen("meters", m.id); setOpenId(m.id); }}>
                   <td>
                     <div className="cell-tenant">
                       <span className="mt-ic"><Icon strokeWidth={1.8} /></span>
                       <div>
-                        <div className="tn-name">{m.number}</div>
+                        <div className="tn-name">{m.number}<NewFlag show={m.isNew} /></div>
                         <div className="tn-sub">{titleCase(m.type)}</div>
                       </div>
                     </div>

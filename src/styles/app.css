@@ -2089,6 +2089,8 @@ textarea.textarea {
   vertical-align: 1px;
 }
 .new-flag svg { width: 11px; height: 11px; fill: currentColor; }
+/* "new" highlight for non-table cards (leads board, documents grid, etc.) */
+.is-new { box-shadow: 0 0 0 1.5px var(--primary); border-color: var(--primary) !important; }
 
 /* ============================================================
    SearchSelect — searchable combobox (tenant / building pickers)

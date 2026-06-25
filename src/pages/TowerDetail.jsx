@@ -13,12 +13,13 @@ import StatusBadge from "../components/StatusBadge";
 import { useConfirm } from "../components/ConfirmDialog";
 import Drawer from "../components/Drawer";
 import BulkUnitFields from "../components/BulkUnitFields";
+import NewFlag from "../components/NewFlag";
 
 const TOWER_TYPES = ["Residential", "Commercial", "Mixed Use", "Retail"];
 
 export default function TowerDetail() {
   const { id } = useParams();
-  const { db, companyId, can, update, add, remove } = useData();
+  const { db, companyId, can, update, add, remove, markSeen } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const ix = indexAll(s);
   const tower = ix.towers[id];
@@ -69,8 +70,8 @@ export default function TowerDetail() {
           </thead>
           <tbody>
             {units.map((u) => (
-              <tr key={u.unit.id} className="row-click" onClick={() => setOpenUnit(u.unit.id)}>
-                <td><button type="button" className="cell-link" style={{ fontWeight: 600 }} onClick={(e) => { e.stopPropagation(); setOpenUnit(u.unit.id); }}>{u.unit.label}</button></td>
+              <tr key={u.unit.id} className={`row-click ${u.unit.isNew ? "row-new" : ""}`} onClick={() => { markSeen("units", u.unit.id); setOpenUnit(u.unit.id); }}>
+                <td><button type="button" className="cell-link" style={{ fontWeight: 600 }} onClick={(e) => { e.stopPropagation(); markSeen("units", u.unit.id); setOpenUnit(u.unit.id); }}>{u.unit.label}</button><NewFlag show={u.unit.isNew} /></td>
                 <td className="t-muted">{u.unit.unitType}</td>
                 <td className="t-muted tnum">{u.unit.floor}</td>
                 <td>{u.tenant ? (
