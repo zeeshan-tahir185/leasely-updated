@@ -4,6 +4,7 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { useData } from "../data/store";
 import { scopeData, indexAll, chequesOfContract } from "../lib/domain";
 import { fmtMoney, fmtDateLong, todayISO } from "../lib/format";
+import { amountInWords } from "../lib/words";
 import { DEFAULT_CONTRACT_CLAUSES } from "../lib/constants";
 
 export default function ContractPrint() {
@@ -89,6 +90,10 @@ export default function ContractPrint() {
             <Field k="Contract type" v={`${c.type} tenancy`} />
             <Field k="Total rent (over term)" v={fmtMoney(termRent)} />
             <Field k="Total payable (rent + deposit + commission)" v={fmtMoney(totalPayable)} />
+          </div>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+            <div className="doc-label">Total rent in words</div>
+            <div className="doc-strong" style={{ fontStyle: "italic", fontWeight: 600 }}>{amountInWords(termRent)}</div>
           </div>
         </section>
 
