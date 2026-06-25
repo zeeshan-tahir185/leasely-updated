@@ -126,7 +126,9 @@ export function DataProvider({ children }) {
     });
   }, []);
 
-  // Generate the installment cheques for a contract term, due on day 5 each cycle.
+  // Generate the installment cheques for a contract term. Due dates track the
+  // contract's start date: the first cheque falls on the start date and each
+  // subsequent one a cycle later, spanning the term to the end date.
   function chequesForContract(d, cid, { towerId, tenantId, annualRent, installments, startDate, endDate }) {
     const start = parseISO(startDate);
     const end = parseISO(endDate);
@@ -137,7 +139,10 @@ export function DataProvider({ children }) {
     const banks = ["Emirates NBD", "ADCB", "Mashreq", "FAB", "DIB"];
     const out = [];
     for (let m = 0, k = 0; m < termMonths; m += monthsPer, k++) {
-      const dt = new Date(start.getFullYear(), start.getMonth() + m, 5);
+      // Keep the start date's day-of-month, clamped to the target month's length
+      // (so a 31st-of-month start doesn't overflow into the next month).
+      const lastDay = new Date(start.getFullYear(), start.getMonth() + m + 1, 0).getDate();
+      const dt = new Date(start.getFullYear(), start.getMonth() + m, Math.min(start.getDate(), lastDay));
       out.push({
         id: newId("chq"), companyId: d.activeCompanyId, towerId, kind: "in", contractId: cid,
         contactId: tenantId, amount: perCheque, dueDate: isoOf(dt),

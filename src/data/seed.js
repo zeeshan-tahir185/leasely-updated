@@ -154,7 +154,7 @@ export function buildSeed() {
     const perCheque = Math.round(annualRent / installments);
     const banks = ["Emirates NBD", "ADCB", "Mashreq", "FAB", "DIB"];
     for (let m = 0, k = 0; m < termMonths; m += monthsPer, k++) {
-      const dueIso = monthsFrom(startMo + m, 5);
+      const dueIso = monthsFrom(startMo + m, 1); // cheques track the contract start day (the 1st)
       const due = new Date(dueIso);
       let chStatus = "pending";
       let clearedDate;
