@@ -5,7 +5,8 @@ const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", 
 
 function under1000(n) {
   let s = "";
-  if (n >= 100) { s += ONES[Math.floor(n / 100)] + " hundred"; n %= 100; if (n) s += " "; }
+  // British/UAE legal style: "one hundred and thirty", "three hundred and five".
+  if (n >= 100) { s += ONES[Math.floor(n / 100)] + " hundred"; n %= 100; if (n) s += " and "; }
   if (n >= 20) { s += TENS[Math.floor(n / 10)]; n %= 10; if (n) s += "-" + ONES[n]; }
   else if (n > 0) s += ONES[n];
   return s;
@@ -18,7 +19,8 @@ function toWords(n) {
   for (const [name, value] of scales) {
     if (n >= value) { s += under1000(Math.floor(n / value)) + " " + name + " "; n %= value; }
   }
-  if (n > 0) s += under1000(n);
+  // Trailing part under 100 after a larger group takes "and": "one thousand and fifty".
+  if (n > 0) s += (s && n < 100 ? "and " : "") + under1000(n);
   return s.trim();
 }
 
