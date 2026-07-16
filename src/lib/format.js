@@ -12,7 +12,11 @@ const money2 = new Intl.NumberFormat("en-AE", {
   maximumFractionDigits: 2,
 });
 
-export const fmtMoney = (n, cents = false) => (cents ? money2 : money0).format(n || 0);
+// Intl joins "AED" to the digits with a no-break space, so a long amount can
+// only clip when its box is too narrow (seen on phone-width KPI cards). A plain
+// space lets "AED" break onto its own line instead; the digits stay whole.
+export const fmtMoney = (n, cents = false) =>
+  (cents ? money2 : money0).format(n || 0).replace(/[\u00A0\u202F]/g, " ");
 
 // Compact form for chart axes: AED 9.5k, AED 940
 export function fmtMoneyShort(n) {

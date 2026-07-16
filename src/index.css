@@ -396,6 +396,13 @@ textarea.input {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r);
+  /* on phone widths a many-option seg scrolls inside its pill, keeping the
+     toolbar (and the page) from being pushed wider than the screen */
+  max-width: 100%;
+  overflow-x: auto;
+}
+.seg button {
+  flex-shrink: 0;
 }
 .seg button {
   height: 28px;
@@ -510,6 +517,36 @@ textarea.input {
   border: none;
   margin: 0;
 }
+/* skeleton placeholders (route fallback while a page chunk loads) */
+.skel {
+  background: var(--surface-2);
+  border-radius: var(--r);
+  animation: skel-pulse 1.3s var(--ease) infinite;
+}
+.skel-title {
+  width: 220px;
+  height: 28px;
+  margin-bottom: 14px;
+}
+.skel-sub {
+  max-width: 460px;
+  height: 15px;
+  margin-bottom: 28px;
+}
+.skel-block {
+  height: 320px;
+  border-radius: var(--r-lg);
+}
+@keyframes skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .empty {
   display: flex;
   flex-direction: column;

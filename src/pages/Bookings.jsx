@@ -86,7 +86,7 @@ export default function Bookings() {
         <div className="list-cap">{filtered.length} booking{filtered.length === 1 ? "" : "s"} in view</div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Unit</th><th>Prospect</th><th className="num">Agreed rent</th><th>Booked</th><th>Expires</th><th>Status</th></tr>

@@ -103,7 +103,7 @@ export default function Cases() {
         <div className="list-cap">{filtered.length} case{filtered.length === 1 ? "" : "s"} in view</div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Case</th><th>Party</th><th>Tower</th><th>Type</th><th>Opened</th><th>Status</th></tr>

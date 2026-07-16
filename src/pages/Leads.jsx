@@ -61,7 +61,7 @@ export default function Leads() {
         </div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Lead</th><th>Interested in</th><th>Stage</th><th>Source</th><th className="num">Budget</th><th>Added</th></tr>

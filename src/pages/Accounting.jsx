@@ -122,20 +122,22 @@ export default function Accounting() {
         {tower === "all" && (
           <section className="card">
             <div className="panel-head"><h3 className="t-h3">Per-tower P&amp;L</h3><span className="t-muted">separate account each</span></div>
-            <table className="table">
-              <thead><tr><th>Tower</th><th className="num">Income</th><th className="num">Expenses</th><th className="num">Net</th><th className="num">Margin</th></tr></thead>
-              <tbody>
-                {pnl.towerRows.map((t) => (
-                  <tr key={t.tower.id} className="row-click" onClick={() => setTower(t.tower.id)}>
-                    <td style={{ fontWeight: 600 }}>{t.tower.name}</td>
-                    <td className="num"><Money value={t.income} /></td>
-                    <td className="num"><Money value={t.expense} /></td>
-                    <td className="num" style={{ fontWeight: 600, color: t.net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}><Money value={t.net} /></td>
-                    <td className="num tnum">{t.income ? `${t.margin}%` : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="table-scroll">
+              <table className="table">
+                <thead><tr><th>Tower</th><th className="num">Income</th><th className="num">Expenses</th><th className="num">Net</th><th className="num">Margin</th></tr></thead>
+                <tbody>
+                  {pnl.towerRows.map((t) => (
+                    <tr key={t.tower.id} className="row-click" onClick={() => setTower(t.tower.id)}>
+                      <td style={{ fontWeight: 600 }}>{t.tower.name}</td>
+                      <td className="num"><Money value={t.income} /></td>
+                      <td className="num"><Money value={t.expense} /></td>
+                      <td className="num" style={{ fontWeight: 600, color: t.net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}><Money value={t.net} /></td>
+                      <td className="num tnum">{t.income ? `${t.margin}%` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
       </div>

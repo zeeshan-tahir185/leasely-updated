@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  ChevronsUpDown, RotateCcw, LogOut, Bell, Check, Building, UserCog,
+  ChevronsUpDown, RotateCcw, LogOut, Bell, Check, Building, UserCog, Menu,
 } from "lucide-react";
 import Logo from "./Logo";
 import { useData } from "../data/store";
@@ -11,13 +11,36 @@ import { scopeData } from "../lib/domain";
 import { buildAlerts } from "../lib/alerts";
 import { periodLabelLong, CUR_PERIOD, initials } from "../lib/format";
 import { useConfirm } from "./ConfirmDialog";
+import { PAGE_LOADERS } from "../pages/loaders";
+
+// Shown while a code-split page's chunk streams in (only on a cold visit to a
+// deep link; hover prefetch and router transitions cover in-app navigation).
+function RouteFallback() {
+  return (
+    <div className="page" aria-busy="true" aria-label="Loading page">
+      <div className="skel skel-title" />
+      <div className="skel skel-sub" />
+      <div className="skel skel-block" />
+    </div>
+  );
+}
 
 export default function AppShell({ onSignOut }) {
   const { db, company, user, role, companyId, setActiveCompany, setCurrentUser, resetDemo } = useData();
   const confirm = useConfirm();
   const [coOpen, setCoOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
+
+  // The drawer (narrow screens) closes on Escape; choosing a destination closes
+  // it via the NavLinks' own onClick.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e) => e.key === "Escape" && setNavOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
 
   const alerts = useMemo(() => buildAlerts(scopeData(db, companyId)), [db, companyId]);
   const companyUsers = db.users.filter((u) => u.companyId === companyId);
@@ -30,7 +53,8 @@ export default function AppShell({ onSignOut }) {
 
   return (
     <div className="shell">
-      <aside className="sidebar">
+      {navOpen && <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
+      <aside className={`sidebar${navOpen ? " open" : ""}`} id="app-sidebar">
         <div className="sidebar-head">
           <Logo />
           <div className="co-switch">
@@ -70,6 +94,9 @@ export default function AppShell({ onSignOut }) {
                   to={path}
                   end={end}
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                  onClick={() => setNavOpen(false)}
+                  onMouseEnter={() => PAGE_LOADERS[key]?.()}
+                  onFocus={() => PAGE_LOADERS[key]?.()}
                 >
                   <Icon strokeWidth={2} />
                   <span>{label}</span>
@@ -121,10 +148,21 @@ export default function AppShell({ onSignOut }) {
 
       <div className="main">
         <header className="topbar">
-          <div className="workspace">
-            <span className="workspace-name">{company.name}</span>
-            <span className="workspace-sep">/</span>
-            <span className="t-muted">{periodLabelLong(CUR_PERIOD)}</span>
+          <div className="topbar-lead">
+            <button
+              className="icon-btn nav-toggle"
+              onClick={() => setNavOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={navOpen}
+              aria-controls="app-sidebar"
+            >
+              <Menu strokeWidth={2} />
+            </button>
+            <div className="workspace">
+              <span className="workspace-name">{company.name}</span>
+              <span className="workspace-sep">/</span>
+              <span className="t-muted">{periodLabelLong(CUR_PERIOD)}</span>
+            </div>
           </div>
           <button className="bell" onClick={() => navigate("/notifications")} aria-label={`${alerts.length} alerts`}>
             <Bell strokeWidth={2} />
@@ -132,7 +170,9 @@ export default function AppShell({ onSignOut }) {
           </button>
         </header>
         <div className="page-scroll">
-          <Outlet />
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     </div>

@@ -107,7 +107,7 @@ export default function Documents() {
         </div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Document</th><th>Category</th><th>Linked to</th><th className="num">Size</th><th>Added</th></tr>

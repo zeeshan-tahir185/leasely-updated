@@ -96,7 +96,7 @@ export default function Contracts() {
         </div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Contract</th><th>Tenant</th><th>Tower / Unit</th><th className="num">Annual rent</th><th>Term</th><th className="num">Cheques</th><th>Status</th></tr>

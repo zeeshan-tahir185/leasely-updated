@@ -134,7 +134,7 @@ export default function Settings() {
       </section>
 
       {/* Team */}
-      <section className="card" style={{ marginBottom: 18, overflow: "hidden" }}>
+      <section className="card" style={{ marginBottom: 18 }}>
         <div className="panel-head">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span className="stat-icon tone-neutral"><Users strokeWidth={2} /></span>
@@ -142,26 +142,28 @@ export default function Settings() {
           </div>
           <span className="t-muted" style={{ fontSize: "0.8125rem" }}>{team.length} member{team.length === 1 ? "" : "s"}</span>
         </div>
-        <table className="table">
-          <thead><tr><th>Name</th><th>Title</th><th>Role</th></tr></thead>
-          <tbody>
-            {team.map((u) => (
-              <tr key={u.id}>
-                <td style={{ fontWeight: 600 }}>{u.name}{u.id === user.id && <span className="badge badge-accent" style={{ marginLeft: 8 }}>You</span>}</td>
-                <td className="t-muted">{u.title || "—"}</td>
-                <td>
-                  {can.manageUsers && u.id !== user.id ? (
-                    <select className="select" style={{ height: 32, width: 150 }} value={u.role} onChange={(e) => update("users", u.id, { role: e.target.value })} aria-label={`Role for ${u.name}`}>
-                      {ROLE_KEYS.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
-                    </select>
-                  ) : (
-                    <span className="badge badge-neutral">{ROLES[u.role]?.label || u.role}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="table">
+            <thead><tr><th>Name</th><th>Title</th><th>Role</th></tr></thead>
+            <tbody>
+              {team.map((u) => (
+                <tr key={u.id}>
+                  <td style={{ fontWeight: 600 }}>{u.name}{u.id === user.id && <span className="badge badge-accent" style={{ marginLeft: 8 }}>You</span>}</td>
+                  <td className="t-muted">{u.title || "—"}</td>
+                  <td>
+                    {can.manageUsers && u.id !== user.id ? (
+                      <select className="select" style={{ height: 32, width: 150 }} value={u.role} onChange={(e) => update("users", u.id, { role: e.target.value })} aria-label={`Role for ${u.name}`}>
+                        {ROLE_KEYS.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
+                      </select>
+                    ) : (
+                      <span className="badge badge-neutral">{ROLES[u.role]?.label || u.role}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Demo data */}

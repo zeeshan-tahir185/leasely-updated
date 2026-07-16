@@ -99,7 +99,7 @@ export default function Assets() {
         <div className="list-cap">{filtered.length} asset{filtered.length === 1 ? "" : "s"} in view</div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Asset</th><th>Tower</th><th>Purchased</th><th className="num">Cost</th><th className="num">Book value</th><th>Status</th></tr>

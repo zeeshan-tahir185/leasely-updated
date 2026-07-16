@@ -63,7 +63,7 @@ export default function Vouchers() {
         <div className="seg seg-wrap">{CATS.map((c) => <button key={c.key} data-active={cat === c.key} onClick={() => setCat(c.key)}>{c.label}</button>)}</div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead><tr><th>Voucher</th><th>Date</th><th>Pay to</th><th>Category</th><th>Tower</th><th>Method</th><th className="num">Amount</th></tr></thead>
           <tbody>

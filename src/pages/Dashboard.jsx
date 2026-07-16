@@ -113,30 +113,32 @@ export default function Dashboard() {
           </div>
           <Link to="/towers" className="btn btn-ghost btn-sm">View all <ArrowRight /></Link>
         </div>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Tower</th><th>Area</th><th className="num">Units</th>
-              <th className="num">Leased</th><th className="num">Income (cash)</th><th className="num">Net P&L</th>
-            </tr>
-          </thead>
-          <tbody>
-            {perTower.map(({ tower, units, leased, net, income }) => (
-              <tr key={tower.id}>
-                <td style={{ fontWeight: 600 }}>
-                  <Link to={`/towers/${tower.id}`} className="cell-link">{tower.name}</Link>
-                </td>
-                <td className="t-muted">{tower.area}</td>
-                <td className="num tnum">{units}</td>
-                <td className="num tnum">{leased}</td>
-                <td className="num tnum">{money(income)}</td>
-                <td className="num tnum" style={{ fontWeight: 600, color: net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}>
-                  {can.viewFinancials ? money(net) : "•••"}
-                </td>
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Tower</th><th>Area</th><th className="num">Units</th>
+                <th className="num">Leased</th><th className="num">Income (cash)</th><th className="num">Net P&L</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {perTower.map(({ tower, units, leased, net, income }) => (
+                <tr key={tower.id}>
+                  <td style={{ fontWeight: 600 }}>
+                    <Link to={`/towers/${tower.id}`} className="cell-link">{tower.name}</Link>
+                  </td>
+                  <td className="t-muted">{tower.area}</td>
+                  <td className="num tnum">{units}</td>
+                  <td className="num tnum">{leased}</td>
+                  <td className="num tnum">{money(income)}</td>
+                  <td className="num tnum" style={{ fontWeight: 600, color: net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}>
+                    {can.viewFinancials ? money(net) : "•••"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

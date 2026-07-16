@@ -98,7 +98,7 @@ export default function Utilities() {
         <div className="list-cap">{filtered.length} meter{filtered.length === 1 ? "" : "s"} · uncollected <Money value={totalUncollectedInView} /></div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Meter</th><th>Tower</th><th>Rate</th><th className="num">Current reading</th><th>Last read</th><th className="num">Uncollected</th><th>Status</th></tr>

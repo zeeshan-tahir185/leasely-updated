@@ -97,7 +97,7 @@ export default function Inventory() {
       </div>
 
       {view === "stock" ? (
-        <section className="card" style={{ overflow: "hidden" }}>
+        <section className="card card-table">
           <table className="table">
             <thead>
               <tr><th>Item</th><th>Category</th><th className="num">In stock</th><th className="num">Reorder at</th><th className="num">Unit cost</th><th className="num">Value</th><th>Status</th></tr>
@@ -128,7 +128,7 @@ export default function Inventory() {
           </table>
         </section>
       ) : (
-        <section className="card" style={{ overflow: "hidden" }}>
+        <section className="card card-table">
           <table className="table">
             <thead>
               <tr><th>PO</th><th>Supplier</th><th>Date</th><th className="num">Total</th><th>Status</th></tr>

@@ -96,7 +96,7 @@ export default function HR() {
       </div>
 
       {view === "team" ? (
-        <section className="card" style={{ overflow: "hidden" }}>
+        <section className="card card-table">
           <table className="table">
             <thead>
               <tr><th>Employee</th><th>Department</th><th>Joined</th><th className="num">Salary</th><th>Status</th></tr>
@@ -121,7 +121,7 @@ export default function HR() {
           </table>
         </section>
       ) : (
-        <section className="card" style={{ overflow: "hidden" }}>
+        <section className="card card-table">
           <table className="table">
             <thead>
               <tr><th>Period</th><th className="num">Employees</th><th className="num">Gross</th><th className="num">Net</th><th>Status</th></tr>

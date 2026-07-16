@@ -157,7 +157,7 @@ export default function Maintenance() {
         </div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Request</th><th>Property / Unit</th><th>Reported by</th><th>Priority</th><th>Logged</th><th>Status</th></tr>

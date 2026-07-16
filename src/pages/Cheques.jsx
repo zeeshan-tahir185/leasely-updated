@@ -145,7 +145,7 @@ export default function Cheques() {
         <div className="list-cap">{filtered.length} cheque{filtered.length === 1 ? "" : "s"} in view · <Money value={inViewTotal} /></div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Cheque</th><th>Party</th><th>Bank</th><th>Tower / Unit</th><th>Due date</th><th className="num">Amount</th><th>Status</th></tr>

@@ -152,7 +152,7 @@ export default function Reports() {
         </section>
       </div>
 
-      <section className="card" style={{ overflow: "hidden", marginBottom: 18 }}>
+      <section className="card" style={{ marginBottom: 18 }}>
         <div className="panel-head">
           <div><h3 className="t-h3">Contracts expiring</h3><p className="t-muted">Renewals due within {leadDays} days</p></div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -160,25 +160,27 @@ export default function Reports() {
             <Link to="/contracts" className="btn btn-ghost btn-sm">Contracts <ArrowRight /></Link>
           </div>
         </div>
-        <table className="table">
-          <thead><tr><th>Tenant</th><th>Tower</th><th>Unit</th><th>Ends</th><th>Renewal</th><th className="num">Annual rent</th></tr></thead>
-          <tbody>
-            {expiring.map(({ c, tenant, unit, tower, days }) => (
-              <tr key={c.id}>
-                <td style={{ fontWeight: 600 }}><Link to={`/contracts?open=${c.id}`} className="cell-link">{tenant?.name || "—"}</Link></td>
-                <td className="t-muted">{tower?.name || "—"}</td>
-                <td className="t-muted">{unit?.label || "—"}</td>
-                <td className="t-muted" style={{ whiteSpace: "nowrap" }}>{fmtDateLong(c.endDate)}</td>
-                <td><span className={`badge ${days <= 14 ? "badge-overdue" : "badge-due"}`}><CalendarClock strokeWidth={2.4} /> in {days} day{days === 1 ? "" : "s"}</span></td>
-                <td className="num"><Money value={c.annualRent} /></td>
-              </tr>
-            ))}
-            {expiring.length === 0 && <tr><td colSpan={6}><div className="empty"><CalendarClock /><p>No contracts expiring in the next {leadDays} days.</p></div></td></tr>}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="table">
+            <thead><tr><th>Tenant</th><th>Tower</th><th>Unit</th><th>Ends</th><th>Renewal</th><th className="num">Annual rent</th></tr></thead>
+            <tbody>
+              {expiring.map(({ c, tenant, unit, tower, days }) => (
+                <tr key={c.id}>
+                  <td style={{ fontWeight: 600 }}><Link to={`/contracts?open=${c.id}`} className="cell-link">{tenant?.name || "—"}</Link></td>
+                  <td className="t-muted">{tower?.name || "—"}</td>
+                  <td className="t-muted">{unit?.label || "—"}</td>
+                  <td className="t-muted" style={{ whiteSpace: "nowrap" }}>{fmtDateLong(c.endDate)}</td>
+                  <td><span className={`badge ${days <= 14 ? "badge-overdue" : "badge-due"}`}><CalendarClock strokeWidth={2.4} /> in {days} day{days === 1 ? "" : "s"}</span></td>
+                  <td className="num"><Money value={c.annualRent} /></td>
+                </tr>
+              ))}
+              {expiring.length === 0 && <tr><td colSpan={6}><div className="empty"><CalendarClock /><p>No contracts expiring in the next {leadDays} days.</p></div></td></tr>}
+            </tbody>
+          </table>
+        </div>
       </section>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card">
         <div className="panel-head">
           <div><h3 className="t-h3">P&amp;L by tower</h3><p className="t-muted">Cash basis, this year</p></div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -186,27 +188,29 @@ export default function Reports() {
             <Link to="/accounting" className="btn btn-ghost btn-sm">Accounting <ArrowRight /></Link>
           </div>
         </div>
-        <table className="table">
-          <thead><tr><th>Tower</th><th className="num">Income</th><th className="num">Expenses</th><th className="num">Net</th><th className="num">Margin</th></tr></thead>
-          <tbody>
-            {pnl.towerRows.map((t) => (
-              <tr key={t.tower.id}>
-                <td style={{ fontWeight: 600 }}><Link to={`/accounting?tower=${t.tower.id}`} className="cell-link">{t.tower.name}</Link></td>
-                <td className="num"><Money value={t.income} /></td>
-                <td className="num"><Money value={t.expense} /></td>
-                <td className="num" style={{ fontWeight: 600, color: t.net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}><Money value={t.net} /></td>
-                <td className="num tnum">{t.income ? `${t.margin}%` : "—"}</td>
+        <div className="table-scroll">
+          <table className="table">
+            <thead><tr><th>Tower</th><th className="num">Income</th><th className="num">Expenses</th><th className="num">Net</th><th className="num">Margin</th></tr></thead>
+            <tbody>
+              {pnl.towerRows.map((t) => (
+                <tr key={t.tower.id}>
+                  <td style={{ fontWeight: 600 }}><Link to={`/accounting?tower=${t.tower.id}`} className="cell-link">{t.tower.name}</Link></td>
+                  <td className="num"><Money value={t.income} /></td>
+                  <td className="num"><Money value={t.expense} /></td>
+                  <td className="num" style={{ fontWeight: 600, color: t.net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}><Money value={t.net} /></td>
+                  <td className="num tnum">{t.income ? `${t.margin}%` : "—"}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: "2px solid var(--border-strong)" }}>
+                <td style={{ fontWeight: 700 }}>All towers</td>
+                <td className="num"><Money value={pnl.income} /></td>
+                <td className="num"><Money value={pnl.expense} /></td>
+                <td className="num" style={{ fontWeight: 700, color: pnl.net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}><Money value={pnl.net} /></td>
+                <td className="num tnum">{pnl.income ? `${Math.round((pnl.net / pnl.income) * 100)}%` : "—"}</td>
               </tr>
-            ))}
-            <tr style={{ borderTop: "2px solid var(--border-strong)" }}>
-              <td style={{ fontWeight: 700 }}>All towers</td>
-              <td className="num"><Money value={pnl.income} /></td>
-              <td className="num"><Money value={pnl.expense} /></td>
-              <td className="num" style={{ fontWeight: 700, color: pnl.net >= 0 ? "var(--success-ink)" : "var(--danger-ink)" }}><Money value={pnl.net} /></td>
-              <td className="num tnum">{pnl.income ? `${Math.round((pnl.net / pnl.income) * 100)}%` : "—"}</td>
-            </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

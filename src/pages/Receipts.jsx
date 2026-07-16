@@ -68,7 +68,7 @@ export default function Receipts() {
         <div className="seg seg-wrap">{AGAINST.map((a) => <button key={a.key} data-active={against === a.key} onClick={() => setAgainst(a.key)}>{a.label}</button>)}</div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead><tr><th>Voucher</th><th>Date</th><th>Received from</th><th>For</th><th>Tower</th><th>Method</th><th className="num">Amount</th></tr></thead>
           <tbody>

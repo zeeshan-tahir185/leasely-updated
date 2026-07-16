@@ -140,7 +140,7 @@ export default function Banking() {
         <div className="seg">{RECON.map((r) => <button key={r.key} data-active={recon === r.key} onClick={() => setRecon(r.key)}>{r.label}</button>)}</div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead><tr><th>Date</th><th>Description</th><th>Account</th><th>Method</th><th>Statement</th><th className="num">Amount</th></tr></thead>
           <tbody>

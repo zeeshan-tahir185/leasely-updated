@@ -109,7 +109,7 @@ export default function Bills() {
         <div className="list-cap">{filtered.length} bill{filtered.length === 1 ? "" : "s"} in view · <Money value={inViewTotal} /></div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Bill</th><th>Supplier</th><th>Tower</th><th>Due date</th><th className="num">Amount</th><th>Status</th></tr>

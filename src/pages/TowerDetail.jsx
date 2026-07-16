@@ -64,29 +64,31 @@ export default function TowerDetail() {
 
       <section className="card">
         <div className="panel-head"><h3 className="t-h3">Units</h3><span className="t-muted">{units.length} total · {leased} leased · tap a unit to edit</span></div>
-        <table className="table">
-          <thead>
-            <tr><th>Unit</th><th>Type</th><th>Floor</th><th>Tenant</th><th className="num">Annual rent</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {units.map((u) => (
-              <tr key={u.unit.id} className={`row-click ${u.unit.isNew ? "row-new" : ""}`} onClick={() => { markSeen("units", u.unit.id); setOpenUnit(u.unit.id); }}>
-                <td><button type="button" className="cell-link" style={{ fontWeight: 600 }} onClick={(e) => { e.stopPropagation(); markSeen("units", u.unit.id); setOpenUnit(u.unit.id); }}>{u.unit.label}</button><NewFlag show={u.unit.isNew} /></td>
-                <td className="t-muted">{u.unit.unitType}</td>
-                <td className="t-muted tnum">{u.unit.floor}</td>
-                <td>{u.tenant ? (
-                  u.contract
-                    ? <Link to="/contracts" className="cell-link" onClick={(e) => e.stopPropagation()}>{u.tenant.name}</Link>
-                    : u.tenant.name
-                ) : <span className="t-faint">—</span>}</td>
-                <td className="num">{u.contract
-                  ? <Money value={u.contract.annualRent} />
-                  : <span className="t-faint">{can.viewFinancials ? fmtMoney(u.unit.annualRent) : "•••"}</span>}</td>
-                <td><StatusBadge status={u.status} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr><th>Unit</th><th>Type</th><th>Floor</th><th>Tenant</th><th className="num">Annual rent</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {units.map((u) => (
+                <tr key={u.unit.id} className={`row-click ${u.unit.isNew ? "row-new" : ""}`} onClick={() => { markSeen("units", u.unit.id); setOpenUnit(u.unit.id); }}>
+                  <td><button type="button" className="cell-link" style={{ fontWeight: 600 }} onClick={(e) => { e.stopPropagation(); markSeen("units", u.unit.id); setOpenUnit(u.unit.id); }}>{u.unit.label}</button><NewFlag show={u.unit.isNew} /></td>
+                  <td className="t-muted">{u.unit.unitType}</td>
+                  <td className="t-muted tnum">{u.unit.floor}</td>
+                  <td>{u.tenant ? (
+                    u.contract
+                      ? <Link to="/contracts" className="cell-link" onClick={(e) => e.stopPropagation()}>{u.tenant.name}</Link>
+                      : u.tenant.name
+                  ) : <span className="t-faint">—</span>}</td>
+                  <td className="num">{u.contract
+                    ? <Money value={u.contract.annualRent} />
+                    : <span className="t-faint">{can.viewFinancials ? fmtMoney(u.unit.annualRent) : "•••"}</span>}</td>
+                  <td><StatusBadge status={u.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {editTower && (

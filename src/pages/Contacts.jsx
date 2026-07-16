@@ -73,7 +73,7 @@ export default function Contacts() {
         </div>
       </div>
 
-      <section className="card" style={{ overflow: "hidden" }}>
+      <section className="card card-table">
         <table className="table">
           <thead>
             <tr><th>Contact</th><th>Type</th><th>Phone</th><th>Email</th></tr>
