@@ -4,6 +4,7 @@ import {
   ChevronsUpDown, RotateCcw, LogOut, Bell, Check, Building, UserCog, Menu,
 } from "lucide-react";
 import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 import { useData } from "../data/store";
 import { GROUPS, MODULES } from "../lib/modules";
 import { canAccess, ROLES } from "../lib/rbac";
@@ -164,10 +165,13 @@ export default function AppShell({ onSignOut }) {
               <span className="t-muted">{periodLabelLong(CUR_PERIOD)}</span>
             </div>
           </div>
-          <button className="bell" onClick={() => navigate("/notifications")} aria-label={`${alerts.length} alerts`}>
-            <Bell strokeWidth={2} />
-            {alerts.length > 0 && <span className="bell-count">{alerts.length}</span>}
-          </button>
+          <div className="topbar-actions">
+            <ThemeToggle />
+            <button className="bell" onClick={() => navigate("/notifications")} aria-label={`${alerts.length} alerts`}>
+              <Bell strokeWidth={2} />
+              {alerts.length > 0 && <span className="bell-count">{alerts.length}</span>}
+            </button>
+          </div>
         </header>
         <div className="page-scroll">
           <Suspense fallback={<RouteFallback />}>

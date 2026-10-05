@@ -3,14 +3,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import "./styles/app.css";
 import { DataProvider, useData } from "./data/store";
 import AppShell from "./components/AppShell";
-import SignIn from "./pages/SignIn";
 import Dashboard from "./pages/Dashboard";
 import { PAGE_LOADERS } from "./pages/loaders";
 import { MODULES } from "./lib/modules";
 import { canAccess } from "./lib/rbac";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 
-const AUTH_KEY = "hearth:auth";
+const AUTH_KEY = "leasely:auth";
 
 // Maps every module key to its page. Each sidebar entry resolves to a real screen;
 // the catch-all route redirects any unmapped path back to the dashboard.
@@ -20,6 +19,10 @@ const PAGES = Object.fromEntries(
   Object.entries(PAGE_LOADERS).map(([key, load]) => [key, lazy(load)])
 );
 PAGES.dashboard = Dashboard;
+
+// The public (pre-auth) site is code-split so authenticated users never load
+// marketing/legal code, and visitors never load the app shell.
+const PublicSite = lazy(() => import("./marketing/PublicSite"));
 
 const TowerDetail = lazy(() => import("./pages/TowerDetail"));
 const ContractPrint = lazy(() => import("./pages/ContractPrint"));
@@ -46,7 +49,12 @@ export default function App() {
     setAuthed(false);
   }
 
-  if (!authed) return <SignIn onSignIn={signIn} />;
+  if (!authed)
+    return (
+      <Suspense fallback={null}>
+        <PublicSite onSignIn={signIn} />
+      </Suspense>
+    );
 
   return (
     <DataProvider>

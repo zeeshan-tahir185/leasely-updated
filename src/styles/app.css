@@ -187,9 +187,14 @@
   height: var(--topbar-h);
   padding: 0 28px;
   border-bottom: 1px solid var(--border);
-  background: oklch(1 0 0 / 0.85);
+  background: color-mix(in oklab, var(--bg) 85%, transparent);
   backdrop-filter: saturate(1.4) blur(6px);
   flex-shrink: 0;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .topbar-lead {
   display: flex;
@@ -500,7 +505,9 @@
   font-weight: 620;
 }
 .bar-tip .t-faint {
-  color: oklch(0.8 0.01 70);
+  /* the tip bg is var(--ink) and text var(--bg); keep the faint line a dimmed
+     version of that text so it reads in both themes */
+  color: color-mix(in oklab, var(--bg) 72%, var(--ink));
   font-size: 0.6875rem;
 }
 
@@ -903,7 +910,7 @@
 .auth {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: 100vh;
+  min-height: 100vh;
 }
 .auth-form-col {
   display: flex;
@@ -1171,7 +1178,7 @@
 .doc-remove svg {
   width: 13px;
   height: 13px;
-  color: var(--danger-ink);
+  color: var(--danger-solid);
 }
 .doc-remove:hover {
   background: var(--danger-soft);
@@ -1653,7 +1660,7 @@
   font-size: 0.625rem;
   font-weight: 700;
   color: #fff;
-  background: var(--danger-ink);
+  background: var(--danger-solid);
   border-radius: var(--r-full);
 }
 
@@ -1934,6 +1941,18 @@
 .print-shell { min-height: 100vh; background: var(--surface-2); padding: 24px 16px 64px; }
 .print-bar { max-width: 820px; margin: 0 auto 16px; display: flex; justify-content: space-between; gap: 12px; }
 .doc {
+  /* A printed document is always white paper with dark ink, even when the app
+     is in dark mode. Re-declare the neutral tokens to light so tables, borders
+     and muted text inside the document stay readable on the page. */
+  --bg: #fff;
+  --surface: #fff;
+  --surface-2: oklch(0.985 0.003 70);
+  --border: oklch(0.9 0.004 70);
+  --border-strong: oklch(0.84 0.006 70);
+  --ink: oklch(0.26 0.012 60);
+  --ink-2: oklch(0.4 0.012 60);
+  --muted: oklch(0.5 0.012 65);
+  --faint: oklch(0.62 0.01 70);
   max-width: 820px;
   margin: 0 auto;
   background: #fff;

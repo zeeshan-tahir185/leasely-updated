@@ -1,7 +1,7 @@
 @import "@fontsource-variable/inter";
 
 /* ============================================================
-   Hearth — design tokens
+   Leasely — design tokens
    Warm terracotta brand on a clean white product surface.
    ============================================================ */
 :root {
@@ -39,6 +39,9 @@
   --danger-ink: oklch(0.47 0.17 28);
   --danger-soft: oklch(0.955 0.035 28);
   --danger-line: oklch(0.86 0.07 28);
+  /* a solid red that always takes white text — stays dark in both themes,
+     unlike --danger-ink which lightens for dark mode */
+  --danger-solid: oklch(0.47 0.17 28);
 
   /* radii */
   --r-sm: 6px;
@@ -77,6 +80,7 @@
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-synthesis: none;
+  color-scheme: light;
 }
 
 * {
@@ -217,7 +221,7 @@ button {
 }
 /* Solid danger: the confirm step that actually destroys. */
 .btn-danger-solid {
-  --_bg: var(--danger-ink);
+  --_bg: var(--danger-solid);
   --_fg: #fff;
   --_bd: transparent;
   box-shadow: var(--shadow-sm);
@@ -574,4 +578,98 @@ textarea.input {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================================
+   Theme toggle (shared by the public nav and the app topbar)
+   ============================================================ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.theme-toggle:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ============================================================
+   Dark theme — app-wide via <html data-theme="dark">.
+   Warm dark neutrals so it stays the same "well-kept ledger"
+   brand after hours. Terracotta kept (with white ink) so it
+   still carries money + primary actions. Print documents opt
+   back out to white paper (see .doc in app.css).
+   ============================================================ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* warm dark neutrals (hue ~65, very low chroma) */
+  --bg: oklch(0.178 0.006 65);
+  --surface: oklch(0.214 0.007 65);
+  --surface-2: oklch(0.255 0.008 65);
+  --border: oklch(0.312 0.008 65);
+  --border-strong: oklch(0.4 0.011 65);
+  --ink: oklch(0.955 0.005 80);
+  --ink-2: oklch(0.83 0.008 80);
+  --muted: oklch(0.675 0.011 75);
+  --faint: oklch(0.565 0.011 75);
+
+  /* brand terracotta — kept dark enough for white text, bright
+     enough to pop on the dark surface */
+  --primary: oklch(0.585 0.15 46);
+  --primary-strong: oklch(0.635 0.152 47);
+  --primary-press: oklch(0.53 0.142 45);
+  --primary-ink: oklch(0.99 0.008 60);
+  --primary-soft: oklch(0.315 0.055 46);
+  --primary-soft-ink: oklch(0.82 0.1 52);
+
+  /* secondary teal */
+  --accent: oklch(0.72 0.1 232);
+  --accent-soft: oklch(0.322 0.06 235);
+
+  /* semantic — dark tint surface + light ink for legible badges */
+  --success: oklch(0.66 0.13 150);
+  --success-ink: oklch(0.82 0.13 152);
+  --success-soft: oklch(0.305 0.06 152);
+  --warning: oklch(0.8 0.13 82);
+  --warning-ink: oklch(0.86 0.11 85);
+  --warning-soft: oklch(0.33 0.055 80);
+  --danger: oklch(0.66 0.18 28);
+  --danger-ink: oklch(0.81 0.12 30);
+  --danger-soft: oklch(0.335 0.09 28);
+  --danger-line: oklch(0.46 0.12 28);
+  --danger-solid: oklch(0.5 0.18 28);
+
+  /* shadows read as depth against dark, not warm haze */
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 14px oklch(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 36px oklch(0 0 0 / 0.5);
+  --shadow-pop: 0 18px 50px oklch(0 0 0 / 0.6);
+}
+/* lighten the native-select caret so it stays visible on dark inputs */
+html[data-theme="dark"] .select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b7b1a8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+/* Brief cross-fade applied only during a theme switch (motion-safe). */
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition: background-color 0.3s var(--ease), border-color 0.3s var(--ease),
+    color 0.3s var(--ease), fill 0.3s var(--ease), box-shadow 0.3s var(--ease) !important;
 }
