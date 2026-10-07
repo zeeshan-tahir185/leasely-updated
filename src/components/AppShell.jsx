@@ -6,7 +6,7 @@ import {
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 import { useData } from "../data/store";
-import { GROUPS, MODULES } from "../lib/modules";
+import { GROUPS, MODULES, moduleEnabled } from "../lib/modules";
 import { canAccess, ROLES } from "../lib/rbac";
 import { scopeData } from "../lib/domain";
 import { buildAlerts } from "../lib/alerts";
@@ -43,14 +43,14 @@ export default function AppShell({ onSignOut }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [navOpen]);
 
-  const alerts = useMemo(() => buildAlerts(scopeData(db, companyId)), [db, companyId]);
+  const alerts = useMemo(() => buildAlerts(scopeData(db, companyId), role), [db, companyId, role]);
   const companyUsers = db.users.filter((u) => u.companyId === companyId);
 
-  // Group the modules this role may see, preserving GROUPS order.
+  // Group the modules this role may see and that are enabled for the company.
   const grouped = useMemo(() => {
-    const visible = MODULES.filter((m) => canAccess(role, m.key));
+    const visible = MODULES.filter((m) => canAccess(role, m.key) && moduleEnabled(db.settings, m.key));
     return GROUPS.map((g) => ({ group: g, items: visible.filter((m) => m.group === g) })).filter((g) => g.items.length);
-  }, [role]);
+  }, [role, db.settings]);
 
   return (
     <div className="shell">

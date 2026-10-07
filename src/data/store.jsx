@@ -2,8 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback } 
 import { buildSeed } from "./seed";
 import { todayISO, isoOf, parseISO } from "../lib/format";
 import { caps } from "../lib/rbac";
+import { payrollLine } from "../lib/constants";
 
-const KEY = "hearth:db:v2";
+const KEY = "leasely:db:v2";
 const SCHEMA = 2;
 const DataCtx = createContext(null);
 
@@ -37,7 +38,7 @@ export function DataProvider({ children }) {
       localStorage.setItem(KEY, JSON.stringify(db));
     } catch (err) {
       if (err && err.name === "QuotaExceededError") {
-        console.warn("Hearth: browser storage is full — recent changes may not be saved.");
+        console.warn("Leasely: browser storage is full — recent changes may not be saved.");
       }
     }
   }, [db]);
@@ -46,15 +47,25 @@ export function DataProvider({ children }) {
   // Every freshly-added record is flagged isNew so lists can star + highlight it
   // until it's opened. A caller can pass isNew:false to opt out.
   const add = useCallback((entity, record) => {
-    const row = { id: record.id || newId(entity.slice(0, 2)), isNew: true, createdTs: Date.now(), ...record };
-    setDb((d) => ({ ...d, [entity]: [...(d[entity] || []), row] }));
-    return row.id;
+    const id = record.id || newId(entity.slice(0, 2));
+    setDb((d) => {
+      const row = {
+        id, isNew: true, createdTs: Date.now(), ...record,
+        createdBy: d.currentUserId, modifiedAt: Date.now(), modifiedBy: d.currentUserId,
+      };
+      return { ...d, [entity]: [...(d[entity] || []), row] };
+    });
+    return id;
   }, []);
 
   const update = useCallback((entity, id, patch) => {
     setDb((d) => ({
       ...d,
-      [entity]: d[entity].map((r) => (r.id === id ? { ...r, ...(typeof patch === "function" ? patch(r) : patch) } : r)),
+      [entity]: d[entity].map((r) =>
+        r.id === id
+          ? { ...r, ...(typeof patch === "function" ? patch(r) : patch), modifiedAt: Date.now(), modifiedBy: d.currentUserId }
+          : r
+      ),
     }));
   }, []);
 
@@ -79,7 +90,10 @@ export function DataProvider({ children }) {
 
   const setCurrentUser = useCallback((userId) => setDb((d) => ({ ...d, currentUserId: userId })), []);
 
-  const updateSettings = useCallback((patch) => setDb((d) => ({ ...d, settings: { ...d.settings, ...patch } })), []);
+  const updateSettings = useCallback((patch) => setDb((d) => ({
+    ...d,
+    settings: { ...d.settings, ...patch, modifiedAt: Date.now(), modifiedBy: d.currentUserId },
+  })), []);
 
   // ---- domain action: cheque status w/ side effects -------------------------
   const setChequeStatus = useCallback((chequeId, status) => {
@@ -88,7 +102,9 @@ export function DataProvider({ children }) {
       if (!cheque) return d;
       const cleared = status === "cleared";
       const cheques = d.cheques.map((c) =>
-        c.id === chequeId ? { ...c, status, clearedDate: cleared ? todayISO() : undefined } : c
+        c.id === chequeId
+          ? { ...c, status, clearedDate: cleared ? todayISO() : undefined, modifiedAt: Date.now(), modifiedBy: d.currentUserId }
+          : c
       );
       let receipts = d.receipts;
       // Clearing an incoming cheque books a rent receipt; un-clearing removes it.
@@ -169,6 +185,7 @@ export function DataProvider({ children }) {
         installments: Math.max(1, Number(input.installments) || 1), startDate: input.startDate,
         endDate: input.endDate, deposit: Number(input.deposit) || 0, commission: Number(input.commission) || 0,
         status: "active", isNew: true,
+        createdBy: d.currentUserId, modifiedAt: Date.now(), modifiedBy: d.currentUserId,
       };
       const cheques = chequesForContract(d, cid, contract);
       return { ...d, contracts: [...d.contracts, contract], cheques: [...d.cheques, ...cheques] };
@@ -184,7 +201,7 @@ export function DataProvider({ children }) {
       const newStart = isoOf(oldEnd);
       const newEnd = isoOf(new Date(oldEnd.getFullYear() + 1, oldEnd.getMonth(), oldEnd.getDate()));
       const rent = Number(annualRent) || c.annualRent;
-      const updated = { ...c, startDate: newStart, endDate: newEnd, annualRent: rent, status: "active" };
+      const updated = { ...c, startDate: newStart, endDate: newEnd, annualRent: rent, status: "active", modifiedAt: Date.now(), modifiedBy: d.currentUserId };
       const cheques = chequesForContract(d, id, updated);
       return {
         ...d,
@@ -238,13 +255,13 @@ export function DataProvider({ children }) {
         };
         return {
           ...d,
-          bills: d.bills.map((b) => (b.id === id ? { ...b, status: "paid", paidDate: todayISO() } : b)),
+          bills: d.bills.map((b) => (b.id === id ? { ...b, status: "paid", paidDate: todayISO(), modifiedAt: Date.now(), modifiedBy: d.currentUserId } : b)),
           vouchers: [...d.vouchers, voucher],
         };
       }
       return {
         ...d,
-        bills: d.bills.map((b) => (b.id === id ? { ...b, status: "unpaid", paidDate: undefined } : b)),
+        bills: d.bills.map((b) => (b.id === id ? { ...b, status: "unpaid", paidDate: undefined, modifiedAt: Date.now(), modifiedBy: d.currentUserId } : b)),
         vouchers: d.vouchers.filter((v) => v.billId !== id),
       };
     });
@@ -259,33 +276,6 @@ export function DataProvider({ children }) {
     }));
   }, []);
 
-  // Record a meter reading: consumption = new − previous, charged at the meter's
-  // rate, and the meter's current reading advances. New charges start uncollected.
-  const recordReading = useCallback((meterId, { reading, date } = {}) => {
-    setDb((d) => {
-      const meter = d.meters.find((m) => m.id === meterId);
-      if (!meter) return d;
-      const value = Number(reading);
-      const units = Math.max(0, value - (meter.lastReading || 0));
-      const amount = Math.round(units * (meter.rate || 0));
-      const rd = { id: newId("rd"), meterId, date: date || todayISO(), reading: value, units, amount, collected: false, isNew: true };
-      return {
-        ...d,
-        readings: [...d.readings, rd],
-        meters: d.meters.map((m) => (m.id === meterId ? { ...m, lastReading: value } : m)),
-      };
-    });
-  }, []);
-
-  // Delete a meter and its whole reading history.
-  const deleteMeter = useCallback((id) => {
-    setDb((d) => ({
-      ...d,
-      meters: d.meters.filter((m) => m.id !== id),
-      readings: d.readings.filter((r) => r.meterId !== id),
-    }));
-  }, []);
-
   // Generate the payroll run for a period: one line per active employee that
   // doesn't already have one, with allowances/deductions off basic salary.
   const runPayroll = useCallback((period) => {
@@ -295,9 +285,13 @@ export function DataProvider({ children }) {
       const additions = d.employees
         .filter((e) => e.companyId === cid && (e.status || "active") === "active" && !have.has(e.id))
         .map((e) => {
-          const allowances = Math.round(e.salary * 0.15);
-          const deductions = Math.round(e.salary * 0.05);
-          return { id: newId("pr"), companyId: cid, employeeId: e.id, period, basic: e.salary, allowances, deductions, net: e.salary + allowances - deductions, status: "pending", isNew: true };
+          const pay = payrollLine(e);
+          return {
+            id: newId("pr"), companyId: cid, employeeId: e.id, period,
+            basic: pay.basic, allowances: pay.allowances, deductions: pay.deductions, net: pay.net,
+            status: "pending", isNew: true,
+            createdBy: d.currentUserId, modifiedAt: Date.now(), modifiedBy: d.currentUserId,
+          };
         });
       return additions.length ? { ...d, payroll: [...d.payroll, ...additions] } : d;
     });
@@ -325,8 +319,8 @@ export function DataProvider({ children }) {
   const actions = useMemo(() => ({
     add, update, remove, markSeen, setActiveCompany, setCurrentUser, updateSettings,
     setChequeStatus, replaceCheque, createContract, renewContract, deleteContract, deleteCheque,
-    setBillPaid, deleteBill, recordReading, deleteMeter, runPayroll, setPayrollPaid, deleteEmployee, resetDemo,
-  }), [add, update, remove, markSeen, setActiveCompany, setCurrentUser, updateSettings, setChequeStatus, replaceCheque, createContract, renewContract, deleteContract, deleteCheque, setBillPaid, deleteBill, recordReading, deleteMeter, runPayroll, setPayrollPaid, deleteEmployee, resetDemo]);
+    setBillPaid, deleteBill, runPayroll, setPayrollPaid, deleteEmployee, resetDemo,
+  }), [add, update, remove, markSeen, setActiveCompany, setCurrentUser, updateSettings, setChequeStatus, replaceCheque, createContract, renewContract, deleteContract, deleteCheque, setBillPaid, deleteBill, runPayroll, setPayrollPaid, deleteEmployee, resetDemo]);
 
   const value = useMemo(() => {
     const company = db.companies.find((c) => c.id === db.activeCompanyId) || db.companies[0];

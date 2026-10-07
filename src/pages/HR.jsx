@@ -3,14 +3,21 @@ import { Search, Plus, Trash2, Users, Coins, Building2, CalendarClock, CheckCirc
 import { useData } from "../data/store";
 import { scopeData } from "../lib/domain";
 import { fmtDateLong, periodLabelLong, CUR_PERIOD, initials, todayISO } from "../lib/format";
-import { DEPARTMENTS, payrollLine } from "../lib/constants";
+import { DEPARTMENTS, ALLOWANCE_SUGGESTIONS, DEDUCTION_SUGGESTIONS, payrollLine } from "../lib/constants";
 import PageHeader from "../components/PageHeader";
 import Drawer from "../components/Drawer";
 import StatusBadge from "../components/StatusBadge";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
 import NewFlag from "../components/NewFlag";
+import LastModified from "../components/LastModified";
 import { useConfirm } from "../components/ConfirmDialog";
+
+// Normalise a [{label, amount}] editor list into clean, numeric line items.
+const cleanItems = (items) =>
+  (items || [])
+    .map((x) => ({ label: (x.label || "").trim(), amount: Number(x.amount) || 0 }))
+    .filter((x) => x.label || x.amount);
 
 export default function HR() {
   const { db, companyId, runPayroll, markSeen } = useData();
@@ -24,11 +31,10 @@ export default function HR() {
 
   const employees = s.employees;
   const active = employees.filter((e) => (e.status || "active") === "active");
-  const monthlyCost = active.reduce((a, e) => a + payrollLine(e.salary).net, 0);
+  const monthlyCost = active.reduce((a, e) => a + payrollLine(e).net, 0);
   const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))];
-  const avgSalary = employees.length ? Math.round(employees.reduce((a, e) => a + e.salary, 0) / employees.length) : 0;
+  const avgSalary = employees.length ? Math.round(employees.reduce((a, e) => a + (e.salary || 0), 0) / employees.length) : 0;
 
-  // payroll grouped by period
   const periods = useMemo(() => {
     const map = {};
     for (const p of s.payroll) {
@@ -70,7 +76,7 @@ export default function HR() {
           <StatCard label="Headcount" Icon={Users} tone="primary" value={active.length} hint={`${employees.length} on record`} />
           <StatCard label="Monthly payroll" Icon={Coins} tone="accent" value={<Money value={monthlyCost} />} hint="net, active staff" />
           <StatCard label="Departments" Icon={Building2} tone="neutral" value={departments.length} hint="across the team" />
-          <StatCard label="Avg salary" Icon={Wallet} tone="primary" value={<Money value={avgSalary} />} hint="basic / month" />
+          <StatCard label="Avg basic" Icon={Wallet} tone="primary" value={<Money value={avgSalary} />} hint="salary / month" />
         </div>
       ) : (
         <div className="kpi-grid kpi-4">
@@ -99,7 +105,7 @@ export default function HR() {
         <section className="card card-table">
           <table className="table">
             <thead>
-              <tr><th>Employee</th><th>Department</th><th>Joined</th><th className="num">Salary</th><th>Status</th></tr>
+              <tr><th>Employee</th><th>Department</th><th>Joined</th><th className="num">Net pay</th><th>Status</th></tr>
             </thead>
             <tbody>
               {filteredEmps.map((e) => (
@@ -112,7 +118,7 @@ export default function HR() {
                   </td>
                   <td className="t-muted">{e.department || "—"}</td>
                   <td className="t-muted" style={{ whiteSpace: "nowrap" }}>{e.joinDate ? fmtDateLong(e.joinDate) : "—"}</td>
-                  <td className="num"><Money value={e.salary} /></td>
+                  <td className="num"><Money value={payrollLine(e).net} /></td>
                   <td><StatusBadge status={e.status || "active"} /></td>
                 </tr>
               ))}
@@ -149,19 +155,83 @@ export default function HR() {
   );
 }
 
+// ---- department picker with a manual "Other…" entry -------------------------
+function DepartmentField({ value, onChange }) {
+  const isOther = !!value && !DEPARTMENTS.includes(value);
+  const [other, setOther] = useState(isOther);
+  return (
+    <>
+      <select
+        className="select"
+        value={other ? "__other" : value}
+        onChange={(e) => {
+          if (e.target.value === "__other") { setOther(true); onChange(""); }
+          else { setOther(false); onChange(e.target.value); }
+        }}
+      >
+        <option value="">Select department…</option>
+        {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+        <option value="__other">Other…</option>
+      </select>
+      {other && (
+        <input className="input" style={{ marginTop: 8 }} placeholder="Enter department name"
+          value={value} onChange={(e) => onChange(e.target.value)} autoFocus />
+      )}
+    </>
+  );
+}
+
+// ---- editable list of {label, amount} (allowances or deductions) ------------
+function LineItemsField({ items, onChange, suggestions, sign }) {
+  const list = items || [];
+  const setRow = (i, patch) => onChange(list.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const add = (label = "") => onChange([...list, { label, amount: "" }]);
+  const remove = (i) => onChange(list.filter((_, k) => k !== i));
+  const unused = (suggestions || []).filter((sug) => !list.some((x) => x.label === sug));
+  return (
+    <div className="li-editor">
+      {list.map((it, i) => (
+        <div className="li-row" key={i}>
+          <input className="input" placeholder="Label" value={it.label} onChange={(e) => setRow(i, { label: e.target.value })} />
+          <div className="li-amt">
+            <span className="li-sign">{sign}AED</span>
+            <input className="input" type="number" min="0" placeholder="0" value={it.amount} onChange={(e) => setRow(i, { amount: e.target.value })} />
+          </div>
+          <button type="button" className="icon-btn" onClick={() => remove(i)} aria-label="Remove line"><Trash2 /></button>
+        </div>
+      ))}
+      <div className="li-add">
+        {unused.map((sug) => (
+          <button type="button" key={sug} className="chip-add" onClick={() => add(sug)}><Plus /> {sug}</button>
+        ))}
+        <button type="button" className="chip-add" onClick={() => add("")}><Plus /> Custom</button>
+      </div>
+    </div>
+  );
+}
+
 function EmployeeDrawer({ id, s, onClose }) {
   const { update, deleteEmployee } = useData();
   const confirm = useConfirm();
   const e = s.employees.find((x) => x.id === id);
-  const [form, setForm] = useState(() => (e ? { name: e.name, title: e.title || "", department: e.department || "", salary: String(e.salary), joinDate: e.joinDate || todayISO(), status: e.status || "active" } : null));
+  const [form, setForm] = useState(() => (e ? {
+    name: e.name, title: e.title || "", department: e.department || "", salary: String(e.salary ?? ""),
+    allowances: e.allowances ? e.allowances.map((x) => ({ ...x })) : [],
+    deductions: e.deductions ? e.deductions.map((x) => ({ ...x })) : [],
+    joinDate: e.joinDate || todayISO(), status: e.status || "active",
+  } : null));
   if (!e) return <Drawer open={false} onClose={onClose} />;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const pay = payrollLine(e.salary);
+  const pay = payrollLine(e);
   const history = s.payroll.filter((p) => p.employeeId === id).sort((a, b) => b.period.localeCompare(a.period));
 
   function saveDetails(ev) {
     ev.preventDefault();
-    update("employees", id, { name: form.name.trim() || e.name, title: form.title.trim(), department: form.department, salary: Number(form.salary) || e.salary, joinDate: form.joinDate, status: form.status });
+    update("employees", id, {
+      name: form.name.trim() || e.name, title: form.title.trim(), department: form.department,
+      salary: Number(form.salary) || 0, allowances: cleanItems(form.allowances), deductions: cleanItems(form.deductions),
+      joinDate: form.joinDate, status: form.status,
+    });
     onClose();
   }
   async function handleDelete() {
@@ -186,17 +256,19 @@ function EmployeeDrawer({ id, s, onClose }) {
         </div>
       </div>
 
-      <div className="detail-list" style={{ marginBottom: 18 }}>
-        <div className="detail-row"><span className="k">Title</span><span className="v">{e.title || "—"}</span></div>
-        <div className="detail-row"><span className="k">Department</span><span className="v">{e.department || "—"}</span></div>
-        <div className="detail-row"><span className="k">Joined</span><span className="v">{e.joinDate ? fmtDateLong(e.joinDate) : "—"}</span></div>
-      </div>
-
       <h3 className="t-h3" style={{ marginBottom: 10 }}>Monthly pay</h3>
       <div className="detail-list" style={{ marginBottom: 18 }}>
-        <div className="detail-row"><span className="k">Basic</span><span className="v"><Money value={pay.basic} /></span></div>
-        <div className="detail-row"><span className="k">Allowances</span><span className="v"><Money value={pay.allowances} /></span></div>
-        <div className="detail-row"><span className="k">Deductions</span><span className="v">− <Money value={pay.deductions} /></span></div>
+        <div className="detail-row"><span className="k">Basic salary</span><span className="v"><Money value={pay.basic} /></span></div>
+        {pay.allowanceItems.length > 0
+          ? pay.allowanceItems.map((a, i) => (
+              <div className="detail-row" key={`a${i}`}><span className="k">{a.label || "Allowance"}</span><span className="v">+ <Money value={Number(a.amount) || 0} /></span></div>
+            ))
+          : <div className="detail-row"><span className="k">Allowances</span><span className="v">+ <Money value={pay.allowances} /></span></div>}
+        {pay.deductionItems.length > 0
+          ? pay.deductionItems.map((dd, i) => (
+              <div className="detail-row" key={`d${i}`}><span className="k">{dd.label || "Deduction"}</span><span className="v">− <Money value={Number(dd.amount) || 0} /></span></div>
+            ))
+          : (pay.deductions > 0 && <div className="detail-row"><span className="k">Deductions</span><span className="v">− <Money value={pay.deductions} /></span></div>)}
         <div className="detail-row"><span className="k" style={{ fontWeight: 600, color: "var(--ink)" }}>Net pay</span><span className="v" style={{ fontWeight: 700 }}><Money value={pay.net} /></span></div>
       </div>
 
@@ -222,10 +294,8 @@ function EmployeeDrawer({ id, s, onClose }) {
         <label className="field"><span>Title</span>
           <input className="input" value={form.title} onChange={(ev) => set("title", ev.target.value)} /></label>
         <label className="field"><span>Department</span>
-          <select className="select" value={form.department} onChange={(ev) => set("department", ev.target.value)}>
-            {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select></label>
-        <label className="field"><span>Salary (AED/mo)</span>
+          <DepartmentField value={form.department} onChange={(v) => set("department", v)} /></label>
+        <label className="field"><span>Basic salary (AED/mo)</span>
           <input className="input" type="number" value={form.salary} onChange={(ev) => set("salary", ev.target.value)} /></label>
         <label className="field"><span>Status</span>
           <select className="select" value={form.status} onChange={(ev) => set("status", ev.target.value)}>
@@ -234,7 +304,14 @@ function EmployeeDrawer({ id, s, onClose }) {
           </select></label>
         <label className="field full"><span>Join date</span>
           <input className="input" type="date" value={form.joinDate} onChange={(ev) => set("joinDate", ev.target.value)} /></label>
+
+        <div className="field full"><span>Allowances</span>
+          <LineItemsField items={form.allowances} onChange={(v) => set("allowances", v)} suggestions={ALLOWANCE_SUGGESTIONS} sign="+ " /></div>
+        <div className="field full"><span>Deductions</span>
+          <LineItemsField items={form.deductions} onChange={(v) => set("deductions", v)} suggestions={DEDUCTION_SUGGESTIONS} sign="− " /></div>
       </form>
+
+      <LastModified record={e} />
     </Drawer>
   );
 }
@@ -244,6 +321,7 @@ function PayrollDrawer({ period, s, onClose }) {
   const ix = useMemo(() => Object.fromEntries(s.employees.map((e) => [e.id, e])), [s.employees]);
   const lines = s.payroll.filter((p) => p.period === period).sort((a, b) => (ix[b.employeeId]?.salary || 0) - (ix[a.employeeId]?.salary || 0));
   const total = lines.reduce((a, p) => a + p.net, 0);
+  const gross = lines.reduce((a, p) => a + p.basic + p.allowances, 0);
   const allPaid = lines.length > 0 && lines.every((p) => p.status === "paid");
 
   return (
@@ -256,7 +334,8 @@ function PayrollDrawer({ period, s, onClose }) {
           : <button className="btn btn-primary" onClick={() => setPayrollPaid(period, true)}><CheckCircle2 /> Mark all paid</button>}
       </>}>
       <div className="detail-list" style={{ marginBottom: 18 }}>
-        <div className="detail-row"><span className="k">Total net</span><span className="v" style={{ fontWeight: 700 }}><Money value={total} /></span></div>
+        <div className="detail-row"><span className="k">Gross</span><span className="v"><Money value={gross} /></span></div>
+        <div className="detail-row"><span className="k" style={{ fontWeight: 600, color: "var(--ink)" }}>Total net</span><span className="v" style={{ fontWeight: 700 }}><Money value={total} /></span></div>
         <div className="detail-row"><span className="k">Status</span><span className="v"><StatusBadge status={allPaid ? "paid" : "pending"} /></span></div>
       </div>
 
@@ -268,7 +347,9 @@ function PayrollDrawer({ period, s, onClose }) {
             <div key={p.id} className={`sched-row ${p.status === "paid" ? "paid" : ""}`}>
               <div>
                 <div className="sched-date">{e?.name || "—"}</div>
-                <div className="t-faint" style={{ fontSize: 12 }}>{e?.title || ""}</div>
+                <div className="t-faint" style={{ fontSize: 12 }}>
+                  Basic <Money value={p.basic} /> · +<Money value={p.allowances} /> · −<Money value={p.deductions} />
+                </div>
               </div>
               <span className="sched-amt"><Money value={p.net} /></span>
               <StatusBadge status={p.status} />
@@ -283,7 +364,7 @@ function PayrollDrawer({ period, s, onClose }) {
 
 function AddEmployeeDrawer({ open, onClose }) {
   const { add, companyId } = useData();
-  const blank = { name: "", title: "", department: "", salary: "", joinDate: todayISO() };
+  const blank = { name: "", title: "", department: "", salary: "", allowances: [], deductions: [], joinDate: todayISO() };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -291,11 +372,17 @@ function AddEmployeeDrawer({ open, onClose }) {
   function submit(e) {
     e.preventDefault();
     if (!form.name.trim()) return setError("Enter the employee's name.");
-    if (!form.department) return setError("Choose a department.");
-    if (!Number(form.salary)) return setError("Enter the monthly salary.");
-    add("employees", { companyId, name: form.name.trim(), title: form.title.trim(), department: form.department, salary: Number(form.salary), joinDate: form.joinDate, status: "active" });
+    if (!form.department.trim()) return setError("Choose or enter a department.");
+    if (!Number(form.salary)) return setError("Enter the basic monthly salary.");
+    add("employees", {
+      companyId, name: form.name.trim(), title: form.title.trim(), department: form.department.trim(),
+      salary: Number(form.salary), allowances: cleanItems(form.allowances), deductions: cleanItems(form.deductions),
+      joinDate: form.joinDate, status: "active",
+    });
     setForm(blank); setError(""); onClose();
   }
+
+  const preview = payrollLine({ salary: Number(form.salary) || 0, allowances: cleanItems(form.allowances), deductions: cleanItems(form.deductions) });
 
   return (
     <Drawer open={open} onClose={onClose} title="Add an employee" subtitle="Add a staff member to the team"
@@ -309,14 +396,23 @@ function AddEmployeeDrawer({ open, onClose }) {
         <label className="field"><span>Title</span>
           <input className="input" value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Property Manager" /></label>
         <label className="field"><span>Department</span>
-          <select className="select" value={form.department} onChange={(e) => set("department", e.target.value)}>
-            <option value="">Select department…</option>
-            {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select></label>
-        <label className="field"><span>Salary (AED/mo)</span>
+          <DepartmentField value={form.department} onChange={(v) => set("department", v)} /></label>
+        <label className="field"><span>Basic salary (AED/mo)</span>
           <input className="input" type="number" value={form.salary} onChange={(e) => set("salary", e.target.value)} /></label>
         <label className="field"><span>Join date</span>
           <input className="input" type="date" value={form.joinDate} onChange={(e) => set("joinDate", e.target.value)} /></label>
+
+        <div className="field full"><span>Allowances (housing, transport, bonus…)</span>
+          <LineItemsField items={form.allowances} onChange={(v) => set("allowances", v)} suggestions={ALLOWANCE_SUGGESTIONS} sign="+ " /></div>
+        <div className="field full"><span>Deductions (loan, advance…)</span>
+          <LineItemsField items={form.deductions} onChange={(v) => set("deductions", v)} suggestions={DEDUCTION_SUGGESTIONS} sign="− " /></div>
+
+        {Number(form.salary) > 0 && (
+          <div className="full li-preview">
+            <span>Net monthly pay</span>
+            <strong><Money value={preview.net} /></strong>
+          </div>
+        )}
         {error && <p className="form-error full">{error}</p>}
       </form>
     </Drawer>

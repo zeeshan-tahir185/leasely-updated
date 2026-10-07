@@ -9,6 +9,7 @@ import { fmtDateLong, todayISO, isoOf, parseISO, initials, phoneMatch } from "..
 import { UAE_BANKS, CHEQUE_STATUSES, CONTRACT_TYPES, DEFAULT_CONTRACT_CLAUSES } from "../lib/constants";
 import PageHeader from "../components/PageHeader";
 import Drawer from "../components/Drawer";
+import LastModified from "../components/LastModified";
 import StatusBadge from "../components/StatusBadge";
 import Money from "../components/Money";
 import TowerFilter from "../components/TowerFilter";
@@ -248,6 +249,7 @@ function ContractDrawer({ id, s, onClose }) {
       )}
 
       {chequeId && <ChequeEditDrawer cheque={cheques.find((x) => x.id === chequeId)} onClose={() => setChequeId(null)} />}
+      <LastModified record={c} />
     </Drawer>
   );
 }

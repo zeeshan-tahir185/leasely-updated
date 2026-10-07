@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { RotateCcw, Check, User, Building2, Bell, Users } from "lucide-react";
+import { RotateCcw, Check, User, Building2, Bell, Users, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { useData } from "../data/store";
 import { scopeData } from "../lib/domain";
 import { ROLES } from "../lib/rbac";
+import { GROUPS, TOGGLEABLE_MODULES, moduleEnabled } from "../lib/modules";
 import { useConfirm } from "../components/ConfirmDialog";
 import PageHeader from "../components/PageHeader";
 import Switch from "../components/Switch";
@@ -17,6 +18,21 @@ export default function Settings() {
   const s = scopeData(db, companyId);
   const settings = db.settings || {};
   const team = s.users;
+  const employees = team.filter((u) => u.role === "employee");
+
+  // Toggle one tower in an employee's assignment (add/remove), persisting the array.
+  function toggleTower(u, towerId) {
+    const cur = Array.isArray(u.assignedTowerIds) ? u.assignedTowerIds : [];
+    const next = cur.includes(towerId) ? cur.filter((id) => id !== towerId) : [...cur, towerId];
+    update("users", u.id, { assignedTowerIds: next });
+  }
+
+  // Enable/disable a module for the whole company (stored as a list of OFF keys).
+  function toggleModule(key, enabled) {
+    const cur = settings.disabledModules || [];
+    const next = enabled ? cur.filter((k) => k !== key) : [...new Set([...cur, key])];
+    updateSettings({ disabledModules: next });
+  }
 
   const [profile, setProfile] = useState({ name: user.name, email: user.email, title: user.title || "", phone: user.phone || "" });
   const [biz, setBiz] = useState({ name: company.name, license: company.license || "", trn: company.trn || "", phone: company.phone || "", email: company.email || "", address: company.address || "" });
@@ -32,7 +48,7 @@ export default function Settings() {
 
   return (
     <div className="page" style={{ maxWidth: 760 }}>
-      <PageHeader title="Settings" subtitle={`Your profile, ${company.name}, and how Hearth alerts you.`} />
+      <PageHeader title="Settings" subtitle={`Your profile, ${company.name}, and how Leasely alerts you.`} />
 
       {/* Profile */}
       <section className="card" style={{ marginBottom: 18 }}>
@@ -133,6 +149,47 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Modules — managers choose which features the company uses */}
+      {can.manageUsers && (
+        <section className="card" style={{ marginBottom: 18 }}>
+          <div className="panel-head">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="stat-icon tone-accent"><SlidersHorizontal strokeWidth={2} /></span>
+              <h3 className="t-h3">Modules</h3>
+            </div>
+            <span className="t-muted" style={{ fontSize: "0.8125rem" }}>Turn features on or off</span>
+          </div>
+          <div className="panel-body">
+            <p className="t-muted" style={{ marginTop: 0, marginBottom: 14, fontSize: "0.875rem", lineHeight: 1.5 }}>
+              Choose which parts of Leasely your team uses. A disabled module disappears from the sidebar and its
+              alerts are hidden. Dashboard and Settings are always on.
+            </p>
+            {GROUPS.map((g) => {
+              const mods = TOGGLEABLE_MODULES.filter((m) => m.group === g);
+              if (!mods.length) return null;
+              return (
+                <div className="mod-group" key={g}>
+                  <div className="mod-group-title">{g}</div>
+                  {mods.map((m) => (
+                    <div className="set-row" key={m.key}>
+                      <div className="set-row-text mod-row-lead">
+                        <span className="mod-ic"><m.Icon strokeWidth={2} /></span>
+                        <span className="lab">{m.label}</span>
+                      </div>
+                      <Switch
+                        checked={moduleEnabled(settings, m.key)}
+                        onChange={(on) => toggleModule(m.key, on)}
+                        label={`Enable ${m.label}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Team */}
       <section className="card" style={{ marginBottom: 18 }}>
         <div className="panel-head">
@@ -165,6 +222,89 @@ export default function Settings() {
           </table>
         </div>
       </section>
+
+      {/* Tower access — managers scope what each employee sees */}
+      {can.manageUsers && (
+        <section className="card" style={{ marginBottom: 18 }}>
+          <div className="panel-head">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="stat-icon tone-primary"><ShieldCheck strokeWidth={2} /></span>
+              <h3 className="t-h3">Tower access</h3>
+            </div>
+            <span className="t-muted" style={{ fontSize: "0.8125rem" }}>Employees only</span>
+          </div>
+          <div className="panel-body">
+            <p className="t-muted" style={{ marginTop: 0, marginBottom: 16, fontSize: "0.875rem", lineHeight: 1.5 }}>
+              Limit what each employee sees. Their dashboard, alerts, contracts and cheques will cover only the
+              towers you assign. Owners, managers and accountants always see every tower.
+            </p>
+
+            {employees.length === 0 ? (
+              <div className="empty" style={{ padding: "20px 0" }}>
+                <ShieldCheck />
+                <span>No employee accounts yet. Set a team member's role to “Employee” above to scope their tower access.</span>
+              </div>
+            ) : (
+              <div className="ta-list">
+                {employees.map((u) => {
+                  const restricted = Array.isArray(u.assignedTowerIds);
+                  const assigned = new Set(u.assignedTowerIds || []);
+                  return (
+                    <div className="ta-row" key={u.id}>
+                      <div className="ta-head">
+                        <div className="ta-who">
+                          <span className="avatar avatar-sm">{(u.name || "?").split(" ").map((p) => p[0]).slice(0, 2).join("")}</span>
+                          <div>
+                            <span className="ta-name">{u.name}</span>
+                            <span className="ta-sub">
+                              {restricted
+                                ? `${assigned.size} of ${s.towers.length} tower${s.towers.length === 1 ? "" : "s"}`
+                                : "All towers"}
+                            </span>
+                          </div>
+                        </div>
+                        <label className="ta-toggle">
+                          <span className="t-muted" style={{ fontSize: "0.8125rem" }}>
+                            {restricted ? "Specific towers" : "All towers"}
+                          </span>
+                          <Switch
+                            checked={restricted}
+                            onChange={(on) => update("users", u.id, { assignedTowerIds: on ? [] : null })}
+                            label={`Restrict ${u.name} to specific towers`}
+                          />
+                        </label>
+                      </div>
+
+                      {restricted && (
+                        <div className="ta-towers">
+                          {s.towers.map((t) => {
+                            const on = assigned.has(t.id);
+                            return (
+                              <button
+                                type="button"
+                                key={t.id}
+                                className={`ta-chip${on ? " is-on" : ""}`}
+                                aria-pressed={on}
+                                onClick={() => toggleTower(u, t.id)}
+                              >
+                                {on && <Check strokeWidth={3} />}
+                                {t.name}
+                              </button>
+                            );
+                          })}
+                          {s.towers.length === 0 && (
+                            <span className="t-muted" style={{ fontSize: "0.8125rem" }}>No towers in this company yet.</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Demo data */}
       <section className="card">

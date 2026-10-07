@@ -2418,3 +2418,227 @@ textarea.textarea {
   font-weight: 540;
   color: var(--success-ink);
 }
+
+/* ============================================================
+   Tower access (Settings) — per-employee tower assignment
+   ============================================================ */
+.ta-list {
+  display: flex;
+  flex-direction: column;
+}
+.ta-row {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.ta-row:first-child {
+  padding-top: 4px;
+  border-top: none;
+}
+.ta-row:last-child {
+  padding-bottom: 4px;
+}
+.ta-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ta-who {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.ta-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.ta-sub {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.ta-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.ta-towers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-left: 45px;
+}
+.ta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  font-size: 0.8125rem;
+  font-weight: 540;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.ta-chip:hover {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+.ta-chip svg {
+  width: 13px;
+  height: 13px;
+}
+.ta-chip.is-on {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-soft-ink);
+}
+@media (max-width: 560px) {
+  .ta-towers {
+    padding-left: 0;
+  }
+  .ta-head {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+/* Module enable/disable list (Settings) */
+.mod-group + .mod-group {
+  margin-top: 8px;
+}
+.mod-group-title {
+  font-size: 0.6875rem;
+  font-weight: 620;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: 14px 0 2px;
+}
+.mod-row-lead {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 11px;
+}
+.mod-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.mod-ic svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* HR — allowance / deduction line-item editor */
+.li-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.li-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.li-row > .input:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.li-amt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.li-sign {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.li-amt .input {
+  width: 108px;
+  text-align: right;
+}
+.li-row .icon-btn {
+  flex-shrink: 0;
+}
+.li-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.chip-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  font-size: 0.75rem;
+  font-weight: 540;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.chip-add:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.chip-add svg {
+  width: 13px;
+  height: 13px;
+}
+.li-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--primary-soft);
+  border-radius: var(--r);
+  font-size: 0.875rem;
+  color: var(--primary-soft-ink);
+}
+.li-preview strong {
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+
+/* Audit stamp line shown in detail drawers */
+.last-modified {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+.last-modified svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}

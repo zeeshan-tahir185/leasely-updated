@@ -22,11 +22,11 @@ function greeting() {
 }
 
 export default function Dashboard() {
-  const { db, companyId, company, user, can } = useData();
+  const { db, companyId, company, user, role, can } = useData();
   const s = useMemo(() => scopeData(db, companyId), [db, companyId]);
   const sum = useMemo(() => dashboardSummary(s), [s]);
   const months = useMemo(() => collectionsByMonth(s, 6), [s]);
-  const alerts = useMemo(() => buildAlerts(s), [s]);
+  const alerts = useMemo(() => buildAlerts(s, role), [s, role]);
   const fin = useMemo(() => towerFinancials(s), [s]);
   const money = (n) => (can.viewFinancials ? fmtMoney(n) : "•••");
 

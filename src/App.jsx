@@ -5,7 +5,7 @@ import { DataProvider, useData } from "./data/store";
 import AppShell from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
 import { PAGE_LOADERS } from "./pages/loaders";
-import { MODULES } from "./lib/modules";
+import { MODULES, moduleEnabled } from "./lib/modules";
 import { canAccess } from "./lib/rbac";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 
@@ -32,8 +32,8 @@ const PnlPrint = lazy(() => import("./pages/PnlPrint"));
 
 // Redirect to the dashboard if the current role can't access a module by URL.
 function Guard({ moduleKey, children }) {
-  const { role } = useData();
-  if (!canAccess(role, moduleKey)) return <Navigate to="/" replace />;
+  const { role, db } = useData();
+  if (!canAccess(role, moduleKey) || !moduleEnabled(db.settings, moduleKey)) return <Navigate to="/" replace />;
   return children;
 }
 

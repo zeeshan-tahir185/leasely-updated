@@ -33,13 +33,6 @@ export const BILL_PAY_METHODS = [
   { key: "cash", label: "Cash" },
 ];
 
-// Fixed-asset categories for the building-asset register (straight-line depreciation).
-export const ASSET_CATEGORIES = ["HVAC", "Elevator", "Power", "Plumbing", "Electrical", "Furniture", "Security", "Other"];
-
-// Utility meter types. A reading's consumption (current − previous) is charged at
-// the meter's per-unit rate and billed to the tenant.
-export const METER_TYPES = ["electricity", "water", "cooling", "gas"];
-
 // Purchasing & inventory: spare-parts categories and purchase-order statuses.
 export const INVENTORY_CATEGORIES = ["HVAC", "Electrical", "Plumbing", "Carpentry", "Cleaning", "Safety", "General"];
 export const PO_STATUSES = ["ordered", "received", "cancelled"];
@@ -51,16 +44,32 @@ export const CASE_STATUSES = ["open", "in_court", "won", "lost", "closed"];
 // Document archive (DMS) categories.
 export const DOC_CATEGORIES = ["Contracts", "Company", "Towers", "Tenants", "Utilities", "Financial", "Maintenance", "Other"];
 
-// HR — departments, and the standard salary breakdown (allowances + deductions as
-// a fraction of basic) used to compute a payroll line.
+// HR — departments and the salary breakdown. Employees carry explicit allowance
+// and deduction line items; legacy records with only a basic salary fall back to
+// the old percentage model so nothing breaks.
 export const DEPARTMENTS = ["Management", "Operations", "Leasing", "Finance", "Maintenance", "Administration"];
 export const ALLOWANCE_RATE = 0.15;
 export const DEDUCTION_RATE = 0.05;
-export const payrollLine = (salary) => {
-  const allowances = Math.round(salary * ALLOWANCE_RATE);
-  const deductions = Math.round(salary * DEDUCTION_RATE);
-  return { basic: salary, allowances, deductions, net: salary + allowances - deductions };
-};
+
+// Common allowance / deduction labels offered as one-tap chips in the HR form.
+export const ALLOWANCE_SUGGESTIONS = ["Housing", "Transport", "Bonus", "Phone", "Commission"];
+export const DEDUCTION_SUGGESTIONS = ["Loan repayment", "Salary advance", "Absence", "Fine"];
+
+const sumItems = (items) =>
+  Array.isArray(items) ? items.reduce((a, x) => a + (Number(x.amount) || 0), 0) : 0;
+
+// Compute an employee's monthly pay. Accepts an employee object (preferred) or a
+// bare salary number (back-compat). Returns totals plus the itemised breakdown.
+export function payrollLine(emp) {
+  if (typeof emp === "number") emp = { salary: emp };
+  const basic = Number(emp?.salary) || 0;
+  const hasExplicit = Array.isArray(emp?.allowances) || Array.isArray(emp?.deductions);
+  const allowanceItems = Array.isArray(emp?.allowances) ? emp.allowances : [];
+  const deductionItems = Array.isArray(emp?.deductions) ? emp.deductions : [];
+  const allowances = hasExplicit ? sumItems(allowanceItems) : Math.round(basic * ALLOWANCE_RATE);
+  const deductions = hasExplicit ? sumItems(deductionItems) : Math.round(basic * DEDUCTION_RATE);
+  return { basic, allowances, deductions, net: basic + allowances - deductions, allowanceItems, deductionItems };
+}
 
 // Default tenancy clauses, editable per contract. The printed contract falls
 // back to these when a contract has no custom clauses set.

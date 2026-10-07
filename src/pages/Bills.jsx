@@ -10,6 +10,7 @@ import { fmtDate, fmtDateLong, todayISO, TODAY, parseISO } from "../lib/format";
 import { BILL_CATEGORIES, BILL_PAY_METHODS } from "../lib/constants";
 import PageHeader from "../components/PageHeader";
 import Drawer from "../components/Drawer";
+import LastModified from "../components/LastModified";
 import StatusBadge from "../components/StatusBadge";
 import StatCard from "../components/StatCard";
 import Money from "../components/Money";
@@ -155,19 +156,28 @@ export default function Bills() {
 function AddBillDrawer({ open, onClose, s }) {
   const { add, companyId } = useData();
   const suppliers = s.contacts.filter((c) => (c.kind || []).includes("supplier"));
-  const blank = { supplierId: "", towerId: "", category: "", billNo: "", amount: "", date: todayISO(), dueDate: todayISO() };
+  const blank = { supplierId: "", newName: "", newPhone: "", towerId: "", category: "", billNo: "", amount: "", date: todayISO(), dueDate: todayISO() };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const isNewSupplier = form.supplierId === "__other";
 
   function submit(e) {
     e.preventDefault();
     if (!form.supplierId) return setError("Choose a supplier.");
+    if (isNewSupplier && !form.newName.trim()) return setError("Enter the new supplier's name.");
     if (!form.towerId) return setError("Choose a property.");
     if (!form.category) return setError("Choose a category.");
     if (!Number(form.amount)) return setError("Enter the bill amount.");
+    // A supplier not in the list can be added inline; create the contact first.
+    let supplierId = form.supplierId;
+    if (isNewSupplier) {
+      supplierId = add("contacts", {
+        companyId, name: form.newName.trim(), phone: form.newPhone.trim() || undefined, kind: ["supplier"],
+      });
+    }
     add("bills", {
-      companyId, supplierId: form.supplierId, towerId: form.towerId, category: form.category,
+      companyId, supplierId, towerId: form.towerId, category: form.category,
       billNo: form.billNo.trim() || undefined, amount: Number(form.amount),
       date: form.date, dueDate: form.dueDate, status: "unpaid",
     });
@@ -185,7 +195,16 @@ function AddBillDrawer({ open, onClose, s }) {
           <select className="select" value={form.supplierId} onChange={(e) => set("supplierId", e.target.value)}>
             <option value="">Select supplier…</option>
             {suppliers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="__other">Other — add a new supplier…</option>
           </select></label>
+        {isNewSupplier && (
+          <>
+            <label className="field"><span>New supplier name</span>
+              <input className="input" value={form.newName} onChange={(e) => set("newName", e.target.value)} placeholder="e.g. CoolTech AC Services" autoFocus /></label>
+            <label className="field"><span>Phone</span>
+              <input className="input" value={form.newPhone} onChange={(e) => set("newPhone", e.target.value)} placeholder="+971 50 000 0000" /></label>
+          </>
+        )}
         <label className="field"><span>Property</span>
           <SearchSelect value={form.towerId} onChange={(v) => set("towerId", v)} options={s.towers.map((t) => ({ value: t.id, label: t.name }))} placeholder="Select property…" />
         </label>
@@ -315,6 +334,8 @@ function BillDrawer({ id, s, onClose }) {
         <label className="field full"><span>Due date</span>
           <input className="input" type="date" min={form.date} value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} /></label>
       </form>
+
+      <LastModified record={bill} />
     </Drawer>
   );
 }

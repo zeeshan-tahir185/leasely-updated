@@ -7,21 +7,49 @@ export const byId = (arr) => Object.fromEntries((arr || []).map((x) => [x.id, x]
 // so every module only ever sees one company's data.
 const COMPANY_COLLECTIONS = [
   "towers", "contacts", "contracts", "cheques", "receipts", "vouchers",
-  "bills", "maintenance", "leads", "bookings", "cases", "assets", "meters",
+  "bills", "maintenance", "leads", "bookings", "cases",
   "employees", "payroll", "inventoryItems", "purchaseOrders", "documents", "users",
 ];
 
+// Collections whose rows carry a towerId and therefore follow a user's tower
+// scope (rows for towers the user can't see are dropped).
+const TOWER_SCOPED = ["contracts", "cheques", "receipts", "vouchers", "bills", "maintenance", "cases"];
+
+// The set of tower ids the current user may see, or null for "all towers".
+// A manager can assign specific towers to an employee (Settings → Tower access),
+// which scopes that employee's dashboard, alerts, contracts and cheques. Owners,
+// managers and accountants always see every tower, as do employees with no
+// explicit assignment (assignedTowerIds absent → unrestricted).
+export function visibleTowerIds(db) {
+  const user = (db.users || []).find((u) => u.id === db.currentUserId);
+  if (user && user.role === "employee" && Array.isArray(user.assignedTowerIds)) {
+    return new Set(user.assignedTowerIds);
+  }
+  return null;
+}
+
 export function scopeData(db, companyId) {
+  const limited = visibleTowerIds(db);
   const out = {};
   for (const key of COMPANY_COLLECTIONS) {
     out[key] = (db[key] || []).filter((r) => !r.companyId || r.companyId === companyId);
   }
-  // units & readings carry no companyId — scope them through their parent
-  // (a unit belongs to whichever company owns its tower; a reading to its meter).
+  // Tower scope: hide rows belonging to towers this user isn't assigned to.
+  if (limited) {
+    out.towers = out.towers.filter((t) => limited.has(t.id));
+    for (const key of TOWER_SCOPED) {
+      out[key] = (out[key] || []).filter((r) => r.towerId == null || limited.has(r.towerId));
+    }
+  }
+  // units carry no companyId — scope them through their parent tower
+  // (a unit belongs to whichever company owns its tower).
   const towerIds = new Set(out.towers.map((t) => t.id));
   out.units = (db.units || []).filter((u) => towerIds.has(u.towerId));
-  const meterIds = new Set(out.meters.map((m) => m.id));
-  out.readings = (db.readings || []).filter((r) => meterIds.has(r.meterId));
+  // bookings are keyed by unit, not tower — follow their unit's visibility.
+  if (limited) {
+    const unitIds = new Set(out.units.map((u) => u.id));
+    out.bookings = (out.bookings || []).filter((b) => b.unitId == null || unitIds.has(b.unitId));
+  }
   out.settings = db.settings;
   return out;
 }

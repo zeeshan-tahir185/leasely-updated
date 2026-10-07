@@ -5,6 +5,7 @@ import { scopeData, indexAll } from "../lib/domain";
 import { initials, phoneMatch } from "../lib/format";
 import PageHeader from "../components/PageHeader";
 import Drawer from "../components/Drawer";
+import LastModified from "../components/LastModified";
 import StatusBadge from "../components/StatusBadge";
 import TowerFilter from "../components/TowerFilter";
 import { useConfirm } from "../components/ConfirmDialog";
@@ -210,6 +211,7 @@ function ContactDrawer({ contact, s, onClose }) {
       )}
       </>
       )}
+      <LastModified record={contact} />
     </Drawer>
   );
 }

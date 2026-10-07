@@ -13,9 +13,7 @@ import {
   Files,
   Calculator,
   Landmark,
-  Boxes,
   Wrench,
-  Gauge,
   ShoppingCart,
   Scale,
   Archive,
@@ -43,10 +41,8 @@ export const MODULES = [
   { key: "bills", label: "Supplier Bills", path: "/bills", Icon: Files, group: "Finance" },
   { key: "accounting", label: "Accounting & P&L", path: "/accounting", Icon: Calculator, group: "Finance" },
   { key: "banking", label: "Banking", path: "/banking", Icon: Landmark, group: "Finance" },
-  { key: "assets", label: "Fixed Assets", path: "/assets", Icon: Boxes, group: "Finance" },
 
   { key: "maintenance", label: "Maintenance", path: "/maintenance", Icon: Wrench, group: "Operations" },
-  { key: "utilities", label: "Utility Meters", path: "/utilities", Icon: Gauge, group: "Operations" },
   { key: "inventory", label: "Purchasing & Inventory", path: "/inventory", Icon: ShoppingCart, group: "Operations" },
   { key: "cases", label: "Legal & Police", path: "/cases", Icon: Scale, group: "Operations" },
   { key: "documents", label: "Documents", path: "/documents", Icon: Archive, group: "Operations" },
@@ -59,3 +55,15 @@ export const MODULES = [
 ];
 
 export const MODULE_BY_KEY = Object.fromEntries(MODULES.map((m) => [m.key, m]));
+
+// Modules the app always needs — can't be switched off in Settings.
+export const ALWAYS_ON = new Set(["dashboard", "settings"]);
+
+// The modules a manager may enable/disable, grouped for the Settings UI.
+export const TOGGLEABLE_MODULES = MODULES.filter((m) => !ALWAYS_ON.has(m.key));
+
+// A module is on unless a manager has explicitly disabled it for the company.
+export function moduleEnabled(settings, key) {
+  if (ALWAYS_ON.has(key)) return true;
+  return !((settings?.disabledModules) || []).includes(key);
+}
