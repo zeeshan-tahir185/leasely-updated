@@ -14,7 +14,7 @@ export default function Logo({ showWord = true, size = 30 }) {
           fill="var(--primary-ink)"
         />
       </svg>
-      {showWord && <span className="logo-word">Hearth</span>}
+      {showWord && <span className="logo-word">Leasely</span>}
     </span>
   );
 }

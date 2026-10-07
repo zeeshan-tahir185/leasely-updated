@@ -18,7 +18,7 @@ export const ROLE_MODULES = {
   manager: ALL,
   accountant: [
     "dashboard", "contacts", "towers", "contracts", "cheques",
-    "receipts", "vouchers", "bills", "accounting", "banking", "assets",
+    "receipts", "vouchers", "bills", "accounting", "banking",
     "reports", "notifications", "settings",
   ],
   employee: [

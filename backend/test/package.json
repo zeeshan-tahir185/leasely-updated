@@ -1,0 +1,14 @@
+{
+  "name": "leasely-backend-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local validation harness for the Leasely backend (PGlite — Postgres in-process).",
+  "scripts": {
+    "test": "node validate.mjs"
+  },
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.3"
+  }
+}

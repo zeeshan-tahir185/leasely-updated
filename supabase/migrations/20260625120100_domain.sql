@@ -1,4 +1,4 @@
--- Hearth domain tables. Each row carries org_id (tenant) + company_id (legal
+-- Leasely domain tables. Each row carries org_id (tenant) + company_id (legal
 -- entity), mirroring the front-end's scopeData(companyId). Money is numeric(14,2)
 -- AED. RLS at the bottom: every org member can read; writes are tiered by role.
 

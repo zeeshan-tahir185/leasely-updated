@@ -255,25 +255,6 @@ export function buildSeed() {
     { id: uid("cs"), companyId: "co-westwood", type: "police", title: "Bounced cheque — Daniel Okafor", contactId: "c-daniel", towerId: "tw-heights", status: "open", refNo: "PD-2026-9931", openedAt: daysFrom(-8) },
   ];
 
-  // ---- fixed assets ----------------------------------------------------------
-  const assets = [
-    { id: uid("as"), companyId: "co-westwood", towerId: "tw-heights", name: "Rooftop chiller unit", category: "HVAC", purchaseDate: monthsFrom(-40, 1), cost: 320000, usefulLifeYears: 15, status: "active" },
-    { id: uid("as"), companyId: "co-westwood", towerId: "tw-blvd", name: "Passenger lift (x2)", category: "Elevator", purchaseDate: monthsFrom(-60, 1), cost: 540000, usefulLifeYears: 20, status: "active" },
-    { id: uid("as"), companyId: "co-westwood", towerId: "tw-canal", name: "Backup generator 250kVA", category: "Power", purchaseDate: monthsFrom(-28, 1), cost: 185000, usefulLifeYears: 12, status: "active" },
-  ];
-
-  // ---- utility meters & readings --------------------------------------------
-  const meters = [
-    { id: "mtr-h-elec", companyId: "co-westwood", towerId: "tw-heights", type: "electricity", number: "E-228104", rate: 0.38, lastReading: 184220 },
-    { id: "mtr-h-water", companyId: "co-westwood", towerId: "tw-heights", type: "water", number: "W-228104", rate: 0.035, lastReading: 51240 },
-    { id: "mtr-c-cool", companyId: "co-westwood", towerId: "tw-canal", type: "cooling", number: "C-451077", rate: 0.62, lastReading: 92110 },
-  ];
-  const readings = [
-    { id: uid("rd"), meterId: "mtr-h-elec", date: monthsFrom(-1, 1), reading: 182010, units: 2210, amount: Math.round(2210 * 0.38), collected: true },
-    { id: uid("rd"), meterId: "mtr-h-elec", date: daysFrom(-1), reading: 184220, units: 2210, amount: Math.round(2210 * 0.38), collected: false },
-    { id: uid("rd"), meterId: "mtr-c-cool", date: daysFrom(-2), reading: 92110, units: 1480, amount: Math.round(1480 * 0.62), collected: false },
-  ];
-
   // ---- HR & payroll ----------------------------------------------------------
   const employees = [
     { id: "e-sarah", companyId: "co-westwood", name: "Sarah Mansour", title: "Property Manager", department: "Operations", salary: 22000, joinDate: monthsFrom(-30, 1), status: "active" },
@@ -330,9 +311,6 @@ export function buildSeed() {
     leads,
     bookings,
     cases,
-    assets,
-    meters,
-    readings,
     employees,
     payroll,
     inventoryItems,

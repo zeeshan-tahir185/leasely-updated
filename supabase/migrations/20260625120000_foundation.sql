@@ -1,4 +1,4 @@
--- Hearth backend foundation: tenancy, identity, and the Row-Level Security spine.
+-- Leasely backend foundation: tenancy, identity, and the Row-Level Security spine.
 --
 -- Tenant model: an ORGANIZATION is a property-management firm (the billing/login
 -- boundary). An org owns one or more COMPANIES (legal entities, e.g. Westwood +

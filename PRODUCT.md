@@ -10,7 +10,7 @@ Dubai real-estate management firms: the owner, property managers, an accountant,
 
 ## Product Purpose
 
-Hearth runs the whole management office. The core loop is UAE rent collection — annual rent split into post-dated cheques, deposited, cleared, bounced, or replaced, with receipts booked automatically — surrounded by the departments that keep a building running: leasing (contracts, bookings, CRM), finance (receipts, payment vouchers, supplier bills, accounting & P&L, banking with reconciliation, fixed assets), operations (maintenance, utility meters, purchasing & inventory, legal cases, documents), people (HR & payroll), and admin (reports, notifications, settings). It is multi-company: one firm can manage several legal entities, each with its own towers and separate per-tower accounts. Modules are role-gated (owner / manager / accountant / employee); money is masked for roles without financial visibility.
+Leasely runs the whole management office. The core loop is UAE rent collection — annual rent split into post-dated cheques, deposited, cleared, bounced, or replaced, with receipts booked automatically — surrounded by the departments that keep a building running: leasing (contracts, bookings, CRM), finance (receipts, payment vouchers, supplier bills, accounting & P&L, banking with reconciliation), operations (maintenance, purchasing & inventory, legal cases, documents), people (HR & payroll), and admin (reports, notifications, settings). It is multi-company: one firm can manage several legal entities, each with its own towers and separate per-tower accounts. Modules are role-gated (owner / manager / accountant / employee); money is masked for roles without financial visibility.
 
 Success is still glanceable money: a manager sees where rent stands and acts in two clicks; the printed artifacts (tenancy contract, receipt/payment vouchers, bank statement, P&L) look like documents a Dubai office would actually file.
 
@@ -25,7 +25,7 @@ Grounded, calm, dependable. Three words: warm, organized, trustworthy. It should
 - Cold navy-and-gold fintech dashboards (Mint-era heaviness).
 - The blue/teal proptech monoculture (every rent app looks identical).
 - AI-purple-on-white SaaS template, hero-metric gradient cards, eyebrow kickers on every panel.
-- Cluttered enterprise property-management software (Yardi/AppFolio density without hierarchy). Hearth now has that breadth of modules; it must never have that noise.
+- Cluttered enterprise property-management software (Yardi/AppFolio density without hierarchy). Leasely now has that breadth of modules; it must never have that noise.
 
 ## Design Principles
 
