@@ -317,7 +317,7 @@ function EmployeeDrawer({ id, s, onClose }) {
 }
 
 function PayrollDrawer({ period, s, onClose }) {
-  const { setPayrollPaid } = useData();
+  const { setPayrollPaid, update } = useData();
   const ix = useMemo(() => Object.fromEntries(s.employees.map((e) => [e.id, e])), [s.employees]);
   const lines = s.payroll.filter((p) => p.period === period).sort((a, b) => (ix[b.employeeId]?.salary || 0) - (ix[a.employeeId]?.salary || 0));
   const total = lines.reduce((a, p) => a + p.net, 0);
@@ -352,7 +352,15 @@ function PayrollDrawer({ period, s, onClose }) {
                 </div>
               </div>
               <span className="sched-amt"><Money value={p.net} /></span>
-              <StatusBadge status={p.status} />
+              <button
+                type="button"
+                className={`payslip-pay${p.status === "paid" ? " is-paid" : ""}`}
+                onClick={() => update("payroll", p.id, { status: p.status === "paid" ? "pending" : "paid" })}
+                title={p.status === "paid" ? "Mark as unpaid" : "Mark as paid"}
+                aria-pressed={p.status === "paid"}
+              >
+                {p.status === "paid" ? <><CheckCircle2 /> Paid</> : "Mark paid"}
+              </button>
             </div>
           );
         })}

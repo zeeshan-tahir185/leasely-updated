@@ -2626,6 +2626,44 @@ textarea.textarea {
   letter-spacing: -0.01em;
 }
 
+/* Per-payslip pay toggle in the payroll drawer */
+.payslip-pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+  font-weight: 560;
+  white-space: nowrap;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.payslip-pay:hover {
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: transparent;
+}
+.payslip-pay.is-paid {
+  background: var(--success-soft);
+  color: var(--success-ink);
+  border-color: transparent;
+}
+.payslip-pay.is-paid:hover {
+  background: var(--success-soft);
+  color: var(--success-ink);
+  opacity: 0.78;
+}
+.payslip-pay svg {
+  width: 13px;
+  height: 13px;
+}
+
 /* Audit stamp line shown in detail drawers */
 .last-modified {
   display: flex;
